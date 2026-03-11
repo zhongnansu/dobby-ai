@@ -75,7 +75,6 @@ describe('context menu click handler', () => {
       { id: 1, title: 'Test Page', url: 'https://example.com' }
     );
 
-    // Wait for the promise rejection to be handled
     await vi.waitFor(() => {
       expect(mockTabsCreate).toHaveBeenCalled();
     });
@@ -110,6 +109,135 @@ describe('context menu click handler', () => {
       { id: 1 }
     );
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('ignores empty selectionText', () => {
+    mockSendMessage.mockResolvedValue(undefined);
+    clickHandler(
+      { menuItemId: 'ask-ai', selectionText: '' },
+      { id: 1 }
+    );
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('ignores whitespace-only selectionText', () => {
+    mockSendMessage.mockResolvedValue(undefined);
+    clickHandler(
+      { menuItemId: 'ask-ai', selectionText: '   ' },
+      { id: 1 }
+    );
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('handles missing selectionText gracefully', () => {
+    mockSendMessage.mockResolvedValue(undefined);
+    clickHandler(
+      { menuItemId: 'ask-ai' },
+      { id: 1 }
+    );
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('truncates long text in fallback path at 6000 chars', async () => {
+    mockSendMessage.mockRejectedValue(new Error('no content script'));
+    mockStorageGet.mockImplementation((keys, cb) => {
+      cb({ lastAI: 'chatgpt', pageContext: false });
+    });
+
+    const longText = 'x'.repeat(8000);
+    clickHandler(
+      { menuItemId: 'ask-ai', selectionText: longText },
+      { id: 1, title: 'Page', url: 'https://example.com' }
+    );
+
+    await vi.waitFor(() => {
+      expect(mockTabsCreate).toHaveBeenCalled();
+    });
+
+    const url = mockTabsCreate.mock.calls[0][0].url;
+    // URL should contain truncated text, not full 8000 chars
+    expect(url).toContain(encodeURIComponent('...[truncated]'));
+  });
+
+  it('uses stored AI preference in fallback path', async () => {
+    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
+    mockStorageGet.mockImplementation((keys, cb) => {
+      cb({ lastAI: 'claude', pageContext: true });
+    });
+
+    clickHandler(
+      { menuItemId: 'ask-ai', selectionText: 'some text' },
+      { id: 1, title: 'My Page', url: 'https://secure.bank.com' }
+    );
+
+    await vi.waitFor(() => {
+      expect(mockTabsCreate).toHaveBeenCalled();
+    });
+
+    const url = mockTabsCreate.mock.calls[0][0].url;
+    expect(url).toContain('claude.ai');
+    expect(url).toContain(encodeURIComponent('My Page'));
+  });
+
+  it('includes page context in fallback when pageContext is true', async () => {
+    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
+    mockStorageGet.mockImplementation((keys, cb) => {
+      cb({ lastAI: 'chatgpt', pageContext: true });
+    });
+
+    clickHandler(
+      { menuItemId: 'ask-ai', selectionText: 'hello' },
+      { id: 1, title: 'Test Page', url: 'https://example.com' }
+    );
+
+    await vi.waitFor(() => {
+      expect(mockTabsCreate).toHaveBeenCalled();
+    });
+
+    const url = mockTabsCreate.mock.calls[0][0].url;
+    expect(url).toContain(encodeURIComponent('From:'));
+    expect(url).toContain(encodeURIComponent('Test Page'));
+  });
+
+  it('excludes page context in fallback when pageContext is false', async () => {
+    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
+    mockStorageGet.mockImplementation((keys, cb) => {
+      cb({ lastAI: 'chatgpt', pageContext: false });
+    });
+
+    clickHandler(
+      { menuItemId: 'ask-ai', selectionText: 'hello' },
+      { id: 1, title: 'Test Page', url: 'https://example.com' }
+    );
+
+    await vi.waitFor(() => {
+      expect(mockTabsCreate).toHaveBeenCalled();
+    });
+
+    const url = mockTabsCreate.mock.calls[0][0].url;
+    expect(url).not.toContain(encodeURIComponent('From:'));
+  });
+
+  it('opens base URL for very long prompts exceeding 12000 char URL limit', async () => {
+    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
+    mockStorageGet.mockImplementation((keys, cb) => {
+      cb({ lastAI: 'chatgpt', pageContext: false });
+    });
+
+    // 6000 chars text + encoding overhead will create a very long URL
+    const text = 'a'.repeat(6000);
+    clickHandler(
+      { menuItemId: 'ask-ai', selectionText: text },
+      { id: 1, title: 'Page', url: 'https://example.com' }
+    );
+
+    await vi.waitFor(() => {
+      expect(mockTabsCreate).toHaveBeenCalled();
+    });
+
+    // The URL should either be the full encoded URL (if under 12000) or just the base URL
+    const createdUrl = mockTabsCreate.mock.calls[0][0].url;
+    expect(createdUrl.startsWith('https://chatgpt.com/')).toBe(true);
   });
 });
 

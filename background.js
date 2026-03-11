@@ -7,15 +7,25 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Constants mirroring prompt.js (background.js can't import content scripts)
+const BG_MAX_TEXT_LENGTH = 6000;
+const BG_MAX_URL_LENGTH = 12000;
+
 // Handle context menu click
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'ask-ai') {
+    // Capture selectionText from context menu API — works even when
+    // content script is unavailable (CSP-blocked pages, chrome:// pages)
+    const selectionText = (info.selectionText || '').trim();
+    if (!selectionText) return;
+
     // Try sending to content script first
     chrome.tabs.sendMessage(tab.id, {
       type: 'SHOW_POPUP',
-      text: info.selectionText
+      text: selectionText
     }).catch(() => {
       // Content script not available (CSP-blocked page) — open directly
+      // Uses stored AI preference and page context toggle
       chrome.storage.local.get(['lastAI', 'pageContext'], (stored) => {
         const ai = stored.lastAI || 'chatgpt';
         const baseUrls = {
@@ -23,15 +33,21 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
           claude: 'https://claude.ai/new'
         };
 
-        let prompt = info.selectionText;
-        if (stored.pageContext !== false) {
+        // Truncate text to MAX_TEXT_LENGTH to match content script behavior
+        let text = selectionText;
+        if (text.length > BG_MAX_TEXT_LENGTH) {
+          text = text.substring(0, BG_MAX_TEXT_LENGTH) + '...[truncated]';
+        }
+
+        let prompt = text;
+        if (stored.pageContext !== false && tab.title && tab.url) {
           prompt += `\n\nFrom: "${tab.title}" (${tab.url})`;
         }
 
         const encoded = encodeURIComponent(prompt);
         const fullUrl = `${baseUrls[ai]}?q=${encoded}`;
 
-        if (fullUrl.length > 8000) {
+        if (fullUrl.length > BG_MAX_URL_LENGTH) {
           chrome.tabs.create({ url: baseUrls[ai] });
         } else {
           chrome.tabs.create({ url: fullUrl });
