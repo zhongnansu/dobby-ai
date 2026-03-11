@@ -383,7 +383,7 @@ function showPopup(selectedText, anchorNode) {
         <div class="preset-section">
           <div class="preset-label">Suggested</div>
           <div class="preset-chips suggested">
-            ${presetConfig.suggested.map(p => `<button class="chip suggested-chip" data-instruction="${escapeAttr(p.instruction)}">${p.label}</button>`).join('')}
+            ${presetConfig.suggested.map(p => `<button class="chip suggested-chip" data-instruction="${escapeAttr(p.instruction)}">${escapeAttr(p.label)}</button>`).join('')}
           </div>
         </div>
 
@@ -391,7 +391,7 @@ function showPopup(selectedText, anchorNode) {
         <div class="preset-section">
           <div class="preset-label">All presets</div>
           <div class="preset-chips">
-            ${allPresets.map(p => `<button class="chip" data-instruction="${escapeAttr(p.instruction)}">${p.label}</button>`).join('')}
+            ${allPresets.map(p => `<button class="chip" data-instruction="${escapeAttr(p.instruction)}">${escapeAttr(p.label)}</button>`).join('')}
           </div>
         </div>
         ` : ''}
@@ -426,15 +426,6 @@ function hidePopup() {
     popupContainer.remove();
     popupContainer = null;
   }
-}
-
-// Mock chrome APIs for Node.js test environment
-if (typeof chrome === 'undefined') {
-  /* global chrome */
-  globalThis.chrome = {
-    storage: { local: { get: function(keys, cb) { cb({}); }, set: function() {} } },
-    runtime: { sendMessage: function() {} }
-  };
 }
 
 // Export for testing (no-op in browser)
