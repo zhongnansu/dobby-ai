@@ -1,8 +1,8 @@
 // Prompt construction and AI URL generation
 // Implemented by Engineer A
 
-const MAX_TEXT_LENGTH = 2000;
-const MAX_URL_LENGTH = 8000;
+const MAX_TEXT_LENGTH = 6000;
+const MAX_URL_LENGTH = 12000;
 
 /**
  * Build the final prompt string.

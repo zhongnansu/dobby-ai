@@ -1,5 +1,15 @@
 import { buildPrompt, getAIUrl, MAX_TEXT_LENGTH, MAX_URL_LENGTH } from '../prompt.js';
 
+describe('MAX constants', () => {
+  it('MAX_TEXT_LENGTH is 6000', () => {
+    expect(MAX_TEXT_LENGTH).toBe(6000);
+  });
+
+  it('MAX_URL_LENGTH is 12000', () => {
+    expect(MAX_URL_LENGTH).toBe(12000);
+  });
+});
+
 describe('buildPrompt', () => {
   it('prepends instruction when provided', () => {
     const result = buildPrompt('hello world', 'Summarize the following', false);
@@ -31,6 +41,13 @@ describe('buildPrompt', () => {
     expect(result).toContain('...[truncated]');
   });
 
+  it('does NOT truncate text at old 2000 limit', () => {
+    const text = 'a'.repeat(3000);
+    const result = buildPrompt(text, '', false);
+    expect(result).toBe(text);
+    expect(result).not.toContain('truncated');
+  });
+
   it('does NOT append page context when includePageContext is false', () => {
     const result = buildPrompt('hello', 'Explain', false);
     expect(result).toBe('Explain:\n\nhello');
@@ -38,8 +55,6 @@ describe('buildPrompt', () => {
   });
 
   it('appends page context when includePageContext is true (no document/window in Node)', () => {
-    // In Node.js test environment, document and window are undefined
-    // so title and url will be empty strings
     const result = buildPrompt('hello', 'Explain', true);
     expect(result).toContain('From:');
     expect(result).toBe('Explain:\n\nhello\n\nFrom: "" ()');
@@ -77,7 +92,7 @@ describe('getAIUrl', () => {
     expect(result.url).not.toContain(' ');
   });
 
-  it('returns fallback when URL exceeds MAX_URL_LENGTH', () => {
+  it('returns fallback when URL exceeds MAX_URL_LENGTH (12000)', () => {
     const longPrompt = 'a'.repeat(MAX_URL_LENGTH);
     const result = getAIUrl('chatgpt', longPrompt);
     expect(result.fallback).toBe(true);
@@ -105,5 +120,12 @@ describe('getAIUrl', () => {
   it('does not include prompt property when fallback is false', () => {
     const result = getAIUrl('chatgpt', 'test');
     expect(result.prompt).toBeUndefined();
+  });
+
+  it('handles prompts that were within old 8000 limit without fallback', () => {
+    // A prompt that would have triggered fallback at 8000 but doesn't at 12000
+    const prompt = 'a'.repeat(3000);
+    const result = getAIUrl('chatgpt', prompt);
+    expect(result.fallback).toBe(false);
   });
 });
