@@ -308,6 +308,10 @@ function wirePopupEvents(shadow, selectedText) {
         showToast(shadow, 'Prompt copied to clipboard \u2014 paste it in the chat');
         chrome.runtime.sendMessage({ type: 'COPY_AND_OPEN', url: result.url });
         setTimeout(hidePopup, 1500);
+      }).catch(() => {
+        showToast(shadow, 'Could not copy \u2014 open AI chat manually');
+        chrome.runtime.sendMessage({ type: 'COPY_AND_OPEN', url: result.url });
+        setTimeout(hidePopup, 1500);
       });
     } else {
       chrome.runtime.sendMessage({ type: 'OPEN_AI_TAB', url: result.url });
@@ -315,13 +319,12 @@ function wirePopupEvents(shadow, selectedText) {
     }
   });
 
-  // Close on Escape key
-  document.addEventListener('keydown', function escHandler(e) {
-    if (e.key === 'Escape') {
-      hidePopup();
-      document.removeEventListener('keydown', escHandler);
-    }
-  });
+  // Close on Escape key — store reference for cleanup in hidePopup()
+  function escHandler(e) {
+    if (e.key === 'Escape') hidePopup();
+  }
+  document.addEventListener('keydown', escHandler);
+  popupContainer._escHandler = escHandler;
 }
 
 /**
@@ -413,9 +416,9 @@ function showPopup(selectedText, anchorNode) {
     `;
 
     wirePopupEvents(shadow, selectedText);
-  });
 
-  document.body.appendChild(popupContainer);
+    document.body.appendChild(popupContainer);
+  });
 }
 
 /**
@@ -423,6 +426,9 @@ function showPopup(selectedText, anchorNode) {
  */
 function hidePopup() {
   if (popupContainer) {
+    if (popupContainer._escHandler) {
+      document.removeEventListener('keydown', popupContainer._escHandler);
+    }
     popupContainer.remove();
     popupContainer = null;
   }
