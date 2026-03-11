@@ -12,8 +12,25 @@ const MAX_URL_LENGTH = 8000;
  * @returns {string}
  */
 function buildPrompt(selectedText, instruction, includePageContext) {
-  // TODO: Implement in PR #2
-  return selectedText;
+  let text = selectedText;
+  if (text.length > MAX_TEXT_LENGTH) {
+    text = text.substring(0, MAX_TEXT_LENGTH) + '...[truncated]';
+  }
+
+  let prompt = '';
+  if (instruction) {
+    prompt = `${instruction}:\n\n${text}`;
+  } else {
+    prompt = text;
+  }
+
+  if (includePageContext) {
+    const title = typeof document !== 'undefined' ? document.title : '';
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    prompt += `\n\nFrom: "${title}" (${url})`;
+  }
+
+  return prompt;
 }
 
 /**
@@ -23,6 +40,20 @@ function buildPrompt(selectedText, instruction, includePageContext) {
  * @returns {{ url: string, fallback: boolean, prompt?: string }}
  */
 function getAIUrl(ai, prompt) {
-  // TODO: Implement in PR #2
-  return { url: '', fallback: false };
+  const encoded = encodeURIComponent(prompt);
+  const baseUrls = {
+    chatgpt: 'https://chatgpt.com/',
+    claude: 'https://claude.ai/new'
+  };
+
+  const fullUrl = `${baseUrls[ai]}?q=${encoded}`;
+
+  if (fullUrl.length > MAX_URL_LENGTH) {
+    return { url: baseUrls[ai], fallback: true, prompt };
+  }
+
+  return { url: fullUrl, fallback: false };
 }
+
+// Export for testing (no-op in browser)
+if (typeof module !== 'undefined') module.exports = { buildPrompt, getAIUrl, MAX_TEXT_LENGTH, MAX_URL_LENGTH };
