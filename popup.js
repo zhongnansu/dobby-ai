@@ -324,7 +324,7 @@ function wirePopupEvents(shadow, selectedText) {
     if (e.key === 'Escape') hidePopup();
   }
   document.addEventListener('keydown', escHandler);
-  popupContainer._escHandler = escHandler;
+  if (popupContainer) popupContainer._escHandler = escHandler;
 }
 
 /**
@@ -435,4 +435,4 @@ function hidePopup() {
 }
 
 // Export for testing (no-op in browser)
-if (typeof module !== 'undefined') module.exports = { showPopup, hidePopup, escapeAttr, showToast, getPopupCSS };
+if (typeof module !== 'undefined') module.exports = { showPopup, hidePopup, escapeAttr, showToast, getPopupCSS, wirePopupEvents };
