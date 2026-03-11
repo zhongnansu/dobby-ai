@@ -30,13 +30,15 @@ jobs:
 
       - name: Calculate new version
         id: version
+        env:
+          BUMP_TYPE: ${{ inputs.bump_type }}
         run: |
           CURRENT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('manifest.json','utf8')).version)")
           echo "Current version: $CURRENT"
 
           NEW=$(node -e "
             const [major, minor, patch] = '${CURRENT}'.split('.').map(Number);
-            const bump = '${{ inputs.bump_type }}';
+            const bump = process.env.BUMP_TYPE;
             let newVersion;
             if (bump === 'major') {
               newVersion = (major + 1) + '.0.0';
@@ -53,20 +55,24 @@ jobs:
           echo "new=$NEW" >> "$GITHUB_OUTPUT"
 
       - name: Update manifest.json
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
         run: |
           node -e "
             const fs = require('fs');
             const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
-            manifest.version = '${{ steps.version.outputs.new }}';
+            manifest.version = process.env.NEW_VERSION;
             fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
           "
 
       - name: Update package.json
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
         run: |
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${{ steps.version.outputs.new }}';
+            pkg.version = process.env.NEW_VERSION;
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
@@ -101,13 +107,18 @@ jobs:
 
       - name: Create pull request
         uses: actions/github-script@v7
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+          CURRENT_VERSION: ${{ steps.version.outputs.current }}
+          BUMP_TYPE: ${{ inputs.bump_type }}
+          LAST_TAG: ${{ steps.changelog.outputs.last_tag }}
         with:
           script: |
             const fs = require('fs');
-            const version = '${{ steps.version.outputs.new }}';
-            const currentVersion = '${{ steps.version.outputs.current }}';
-            const bumpType = '${{ inputs.bump_type }}';
-            const lastTag = '${{ steps.changelog.outputs.last_tag }}';
+            const version = process.env.NEW_VERSION;
+            const currentVersion = process.env.CURRENT_VERSION;
+            const bumpType = process.env.BUMP_TYPE;
+            const lastTag = process.env.LAST_TAG;
             const branch = `release/v${version}`;
 
             const changelog = fs.readFileSync('/tmp/changelog.txt', 'utf8').trim();

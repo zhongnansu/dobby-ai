@@ -25,6 +25,13 @@ jobs:
 
       - run: npm ci
 
+      - name: Verify coverage dependency
+        run: |
+          if ! node -e "require.resolve('@vitest/coverage-v8')" 2>/dev/null; then
+            echo "::error::@vitest/coverage-v8 is not installed. Add it to devDependencies: npm install --save-dev @vitest/coverage-v8"
+            exit 1
+          fi
+
       - name: Run tests with coverage
         id: coverage
         continue-on-error: true
@@ -55,6 +62,9 @@ jobs:
                 'npm install --save-dev @vitest/coverage-v8',
                 '```',
               ].join('\n');
+
+              core.summary.addRaw(commentBody);
+              await core.summary.write();
             } else {
               const summaryJson = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
 

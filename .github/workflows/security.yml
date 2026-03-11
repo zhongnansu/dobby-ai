@@ -48,7 +48,7 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           FOUND_ISSUES=0
-          SOURCE_FILES=$(find . -maxdepth 1 -name '*.js' -not -name '*.test.js' -not -path './node_modules/*')
+          SOURCE_FILES=$(find . -name '*.js' -not -name '*.test.js' -not -path './node_modules/*' -not -path './.git/*')
 
           # --- eval() or new Function( ---
           echo "### Checking for \`eval()\` and \`new Function(\`" >> "$GITHUB_STEP_SUMMARY"

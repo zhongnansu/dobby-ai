@@ -59,11 +59,11 @@ jobs:
             const prManifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
             const baseManifest = JSON.parse(fs.readFileSync('__base/manifest.json', 'utf8'));
 
-            const prPerms = new Set(prManifest.permissions || []);
-            const basePerms = new Set(baseManifest.permissions || []);
+            const prPerms = new Set([...(prManifest.permissions || [])].sort());
+            const basePerms = new Set([...(baseManifest.permissions || [])].sort());
 
-            const added = [...prPerms].filter(p => !basePerms.has(p));
-            const removed = [...basePerms].filter(p => !prPerms.has(p));
+            const added = [...prPerms].filter(p => !basePerms.has(p)).sort();
+            const removed = [...basePerms].filter(p => !prPerms.has(p)).sort();
 
             let permSection = '';
             if (added.length > 0 || removed.length > 0) {
