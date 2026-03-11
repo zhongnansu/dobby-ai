@@ -114,6 +114,13 @@ function createMockPopupDOM() {
           <span class="slider"></span>
         </label>
       </div>
+      <div class="open-mode-toggle">
+        <span class="open-mode-label">Open in</span>
+        <div class="segmented-control">
+          <button class="segment-btn active" data-mode="popup">Popup Window</button>
+          <button class="segment-btn" data-mode="tab">New Tab</button>
+        </div>
+      </div>
       <button class="send-btn chatgpt">Send to ChatGPT \u2192</button>
     </div>
   `;
@@ -317,6 +324,7 @@ describe('wirePopupEvents', () => {
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
         type: 'OPEN_AI_TAB',
         url: expect.stringContaining('chatgpt.com'),
+        openMode: 'popup',
       });
     });
 
@@ -402,6 +410,7 @@ describe('wirePopupEvents', () => {
         expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
           type: 'COPY_AND_OPEN',
           url: 'https://chatgpt.com/',
+          openMode: 'popup',
         });
       });
     });
@@ -413,6 +422,77 @@ describe('wirePopupEvents', () => {
         const sendBtn = shadow.querySelector('.send-btn');
         expect(sendBtn.classList.contains('sent')).toBe(true);
         expect(sendBtn.textContent).toContain('Sent');
+      });
+    });
+  });
+
+  describe('open mode toggle', () => {
+    it('defaults to popup mode (active class on popup button)', () => {
+      const popupBtn = shadow.querySelector('.segment-btn[data-mode="popup"]');
+      const tabBtn = shadow.querySelector('.segment-btn[data-mode="tab"]');
+      expect(popupBtn.classList.contains('active')).toBe(true);
+      expect(tabBtn.classList.contains('active')).toBe(false);
+    });
+
+    it('switches to tab mode when tab button is clicked', () => {
+      const tabBtn = shadow.querySelector('.segment-btn[data-mode="tab"]');
+      tabBtn.click();
+
+      expect(tabBtn.classList.contains('active')).toBe(true);
+      expect(shadow.querySelector('.segment-btn[data-mode="popup"]').classList.contains('active')).toBe(false);
+    });
+
+    it('saves openMode preference to chrome.storage.local', () => {
+      shadow.querySelector('.segment-btn[data-mode="tab"]').click();
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ openMode: 'tab' });
+    });
+
+    it('switches back to popup mode', () => {
+      shadow.querySelector('.segment-btn[data-mode="tab"]').click();
+      shadow.querySelector('.segment-btn[data-mode="popup"]').click();
+
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ openMode: 'popup' });
+      expect(shadow.querySelector('.segment-btn[data-mode="popup"]').classList.contains('active')).toBe(true);
+    });
+
+    it('includes openMode in OPEN_AI_TAB message', () => {
+      // Ensure non-fallback behavior
+      getAIUrl.mockImplementation((ai, prompt) => ({
+        url: `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
+        fallback: false,
+      }));
+
+      shadow.querySelector('.segment-btn[data-mode="tab"]').click();
+      shadow.querySelector('.send-btn').click();
+
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+        type: 'OPEN_AI_TAB',
+        url: expect.stringContaining('chatgpt.com'),
+        openMode: 'tab',
+      });
+    });
+
+    it('includes openMode in COPY_AND_OPEN message', async () => {
+      getAIUrl.mockReturnValue({
+        url: 'https://chatgpt.com/',
+        fallback: true,
+        prompt: 'long prompt text',
+      });
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: vi.fn(() => Promise.resolve()),
+        },
+      });
+
+      shadow.querySelector('.segment-btn[data-mode="tab"]').click();
+      shadow.querySelector('.send-btn').click();
+
+      await vi.waitFor(() => {
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+          type: 'COPY_AND_OPEN',
+          url: 'https://chatgpt.com/',
+          openMode: 'tab',
+        });
       });
     });
   });

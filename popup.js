@@ -514,6 +514,48 @@ function getPopupCSS() {
       background: #059669;
     }
 
+    /* ── Open mode toggle ── */
+    .open-mode-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+    .open-mode-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .segmented-control {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .segment-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .segment-btn:hover:not(.active) {
+      color: var(--text);
+      background: var(--surface-hover);
+    }
+    .segment-btn.active {
+      background: #4f46e5;
+      color: white;
+    }
+    .segment-btn:focus-visible {
+      outline: 2px solid #4f46e5;
+      outline-offset: -2px;
+    }
+
     /* ── Toast ── */
     .toast {
       position: absolute;
@@ -541,6 +583,7 @@ function getPopupCSS() {
 function wirePopupEvents(shadow, selectedText) {
   let currentAI = shadow.querySelector('.ai-btn.active')?.dataset.ai || 'chatgpt';
   let selectedInstruction = '';
+  let currentOpenMode = shadow.querySelector('.segment-btn.active')?.dataset.mode || 'popup';
 
   // AI selector toggle
   shadow.querySelectorAll('.ai-btn').forEach(btn => {
@@ -578,6 +621,16 @@ function wirePopupEvents(shadow, selectedText) {
   const contextCheckbox = shadow.querySelector('.context-checkbox');
   contextCheckbox.addEventListener('change', () => {
     chrome.storage.local.set({ pageContext: contextCheckbox.checked });
+  });
+
+  // Open mode segmented control
+  shadow.querySelectorAll('.segment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      shadow.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentOpenMode = btn.dataset.mode;
+      chrome.storage.local.set({ openMode: currentOpenMode });
+    });
   });
 
   // More presets toggle
@@ -674,21 +727,21 @@ function wirePopupEvents(shadow, selectedText) {
       sendBtn.textContent = 'Sending...';
       navigator.clipboard.writeText(result.prompt).then(() => {
         showToast(shadow, 'Prompt copied to clipboard \u2014 paste it in the chat');
-        chrome.runtime.sendMessage({ type: 'COPY_AND_OPEN', url: result.url });
+        chrome.runtime.sendMessage({ type: 'COPY_AND_OPEN', url: result.url, openMode: currentOpenMode });
         sendBtn.classList.remove('loading');
         sendBtn.classList.add('sent');
         sendBtn.textContent = 'Sent \u2713';
         setTimeout(hidePopup, 1500);
       }).catch(() => {
         showToast(shadow, 'Could not copy \u2014 open AI chat manually');
-        chrome.runtime.sendMessage({ type: 'COPY_AND_OPEN', url: result.url });
+        chrome.runtime.sendMessage({ type: 'COPY_AND_OPEN', url: result.url, openMode: currentOpenMode });
         sendBtn.classList.remove('loading');
         setTimeout(hidePopup, 1500);
       });
     } else {
       sendBtn.classList.add('loading');
       sendBtn.textContent = 'Sending...';
-      chrome.runtime.sendMessage({ type: 'OPEN_AI_TAB', url: result.url });
+      chrome.runtime.sendMessage({ type: 'OPEN_AI_TAB', url: result.url, openMode: currentOpenMode });
       sendBtn.classList.remove('loading');
       sendBtn.classList.add('sent');
       sendBtn.textContent = 'Sent \u2713';
@@ -764,9 +817,10 @@ function showPopup(selectedText, anchorNode) {
     }).join('');
 
   // Load saved preferences then render
-  chrome.storage.local.get(['lastAI', 'pageContext'], (stored) => {
+  chrome.storage.local.get(['lastAI', 'pageContext', 'openMode'], (stored) => {
     const currentAI = stored.lastAI || 'chatgpt';
     const pageContextOn = stored.pageContext !== undefined ? stored.pageContext : true;
+    const openMode = stored.openMode || 'popup';
 
     shadow.innerHTML = `
       <style>${getPopupCSS()}</style>
@@ -832,6 +886,14 @@ function showPopup(selectedText, anchorNode) {
             <input type="checkbox" class="context-checkbox" ${pageContextOn ? 'checked' : ''} aria-label="Include page context" />
             <span class="slider"></span>
           </label>
+        </div>
+
+        <div class="open-mode-toggle">
+          <span class="open-mode-label">Open in</span>
+          <div class="segmented-control">
+            <button class="segment-btn ${openMode === 'popup' ? 'active' : ''}" data-mode="popup">Popup Window</button>
+            <button class="segment-btn ${openMode === 'tab' ? 'active' : ''}" data-mode="tab">New Tab</button>
+          </div>
         </div>
 
         <button class="send-btn ${currentAI}">Send to ${currentAI === 'chatgpt' ? 'ChatGPT' : 'Claude'} \u2192</button>
