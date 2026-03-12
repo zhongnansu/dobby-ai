@@ -137,11 +137,13 @@ describe('bubble.js', () => {
     it('returns light when OS prefers light', () => {
       window.matchMedia = vi.fn(() => ({ matches: false }));
       expect(detectTheme()).toBe('light');
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
     it('returns dark when OS prefers dark', () => {
       window.matchMedia = vi.fn(() => ({ matches: true }));
       expect(detectTheme()).toBe('dark');
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
     it('defaults to light when matchMedia unavailable', () => {

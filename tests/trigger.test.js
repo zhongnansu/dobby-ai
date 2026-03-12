@@ -168,7 +168,7 @@ describe('event-driven behavior', () => {
 
 // Errata item 9: preset selector tests
 describe('preset selector', () => {
-  it('shows preset buttons from getSuggestedPresetsForType', () => {
+  function openPresetSelector() {
     createTriggerButton();
     window.getSelection = vi.fn(() => ({
       toString: () => 'test text',
@@ -179,7 +179,27 @@ describe('preset selector', () => {
     showTrigger(200, 100);
     const btn = document.getElementById('dobby-ai-trigger');
     btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    const presets = document.getElementById('dobby-ai-presets');
+    return document.getElementById('dobby-ai-presets');
+  }
+
+  it('shows preset buttons from getSuggestedPresetsForType', () => {
+    const presets = openPresetSelector();
     expect(presets).not.toBeNull();
+  });
+
+  it('uses dark theme colors when detectTheme returns dark', () => {
+    global.detectTheme = vi.fn(() => 'dark');
+    const presets = openPresetSelector();
+    expect(presets.style.background).toBe('rgba(30, 30, 40, 0.85)');
+    expect(presets.style.border).toContain('rgba(255, 255, 255, 0.12)');
+    global.detectTheme = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
+  });
+
+  it('uses light theme colors when detectTheme returns light', () => {
+    global.detectTheme = vi.fn(() => 'light');
+    const presets = openPresetSelector();
+    expect(presets.style.background).toBe('rgba(255, 255, 255, 0.85)');
+    expect(presets.style.border).toContain('rgba(0, 0, 0, 0.08)');
+    global.detectTheme = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
   });
 });
