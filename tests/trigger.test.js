@@ -1,34 +1,62 @@
+// tests/trigger.test.js
 // @vitest-environment jsdom
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createTriggerButton, showTrigger, hideTrigger, _resetTriggerForTesting } from '../trigger.js';
+
+// Mock dependencies
+global.detectContent = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
+global.getSuggestedPresetsForType = vi.fn(() => [
+  { id: 'explain', label: 'Explain this', instruction: 'Explain the following' },
+  { id: 'summarize', label: 'Summarize', instruction: 'Summarize the following' },
+]);
+global.buildChatMessages = vi.fn((text, instruction) => [
+  { role: 'system', content: instruction },
+  { role: 'user', content: text },
+]);
+global.showBubble = vi.fn();
+global.hideBubble = vi.fn();
+global.bubbleHost = null;
+
+const {
+  createTriggerButton,
+  showTrigger,
+  hideTrigger,
+  _resetTriggerForTesting,
+} = await import('../trigger.js');
 
 beforeEach(() => {
   _resetTriggerForTesting();
   document.body.innerHTML = '';
+  vi.clearAllMocks();
 });
 
 describe('createTriggerButton', () => {
-  it('creates a div with id "ask-ai-trigger"', () => {
+  it('creates button with Dobby AI branding', () => {
     createTriggerButton();
-    const el = document.getElementById('ask-ai-trigger');
+    const el = document.getElementById('dobby-ai-trigger');
     expect(el).not.toBeNull();
-    expect(el.tagName).toBe('DIV');
+    expect(el.textContent).toBe('\u2726 Dobby AI');
   });
 
-  it('is idempotent — calling twice does not create two buttons', () => {
+  it('is idempotent', () => {
     createTriggerButton();
     createTriggerButton();
-    const elements = document.querySelectorAll('#ask-ai-trigger');
-    expect(elements.length).toBe(1);
+    expect(document.querySelectorAll('#dobby-ai-trigger').length).toBe(1);
   });
 
-  it('button has correct styling (frosted glass indigo, fixed position, high z-index)', () => {
+  it('has frosted glass styling', () => {
     createTriggerButton();
-    const el = document.getElementById('ask-ai-trigger');
+    const el = document.getElementById('dobby-ai-trigger');
+    expect(el.style.position).toBe('fixed');
+    expect(el.style.backdropFilter).toBe('blur(12px)');
+  });
+
+  // Preserved from existing tests
+  it('has correct styling (frosted glass indigo, fixed position, high z-index)', () => {
+    createTriggerButton();
+    const el = document.getElementById('dobby-ai-trigger');
     expect(el.style.position).toBe('fixed');
     expect(el.style.zIndex).toBe('2147483647');
-    // Semi-transparent indigo with blur
     expect(el.style.background).toBe('rgba(79, 70, 229, 0.7)');
     expect(el.style.backdropFilter).toBe('blur(12px)');
     expect(el.style.color).toBe('white');
@@ -39,23 +67,26 @@ describe('createTriggerButton', () => {
 });
 
 describe('showTrigger', () => {
-  it('makes the button visible and positions it', () => {
+  it('makes button visible and positions it', () => {
     const rect = { right: 200, top: 100 };
     showTrigger(rect);
-    const el = document.getElementById('ask-ai-trigger');
-    expect(el).not.toBeNull();
+    const el = document.getElementById('dobby-ai-trigger');
     expect(el.style.display).toBe('block');
-    // left is clamped: Math.min(200, window.innerWidth - buttonWidth - 8)
-    // In jsdom, innerWidth defaults to 1024, offsetWidth is 0 (fallback 80), so maxLeft = 936
+  });
+
+  // Preserved from existing tests
+  it('positions correctly', () => {
+    const rect = { right: 200, top: 100 };
+    showTrigger(rect);
+    const el = document.getElementById('dobby-ai-trigger');
     expect(el.style.left).toBe('200px');
-    expect(el.style.top).toBe('64px'); // Math.max(4, 100 - 36) = 64
+    expect(el.style.top).toBe('64px'); // Math.max(4, 100 - 36)
   });
 
   it('clamps left position to prevent off-screen rendering', () => {
-    // Simulate selection at far right edge
     const rect = { right: 1020, top: 100 };
     showTrigger(rect);
-    const el = document.getElementById('ask-ai-trigger');
+    const el = document.getElementById('dobby-ai-trigger');
     // maxLeft = 1024 - 80 - 8 = 936 (jsdom defaults innerWidth=1024, offsetWidth fallback=80)
     expect(parseInt(el.style.left)).toBeLessThanOrEqual(936);
   });
@@ -63,8 +94,7 @@ describe('showTrigger', () => {
   it('clamps top position to minimum of 4px', () => {
     const rect = { right: 100, top: 20 };
     showTrigger(rect);
-    const el = document.getElementById('ask-ai-trigger');
-    // Math.max(4, 20 - 36) = Math.max(4, -16) = 4
+    const el = document.getElementById('dobby-ai-trigger');
     expect(el.style.top).toBe('4px');
   });
 });
@@ -72,18 +102,17 @@ describe('showTrigger', () => {
 describe('hideTrigger', () => {
   it('sets display to none', () => {
     showTrigger({ right: 100, top: 100 });
-    const el = document.getElementById('ask-ai-trigger');
-    expect(el.style.display).toBe('block');
     hideTrigger();
+    const el = document.getElementById('dobby-ai-trigger');
     expect(el.style.display).toBe('none');
   });
 
   it('is safe to call when no button exists', () => {
-    // No button has been created, should not throw
     expect(() => hideTrigger()).not.toThrow();
   });
 });
 
+// Preserved from existing tests
 describe('event-driven behavior', () => {
   function mockSelection(text) {
     const range = { getBoundingClientRect: () => ({ top: 100, right: 200, bottom: 120, left: 100 }) };
@@ -103,7 +132,7 @@ describe('event-driven behavior', () => {
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     vi.advanceTimersByTime(20);
 
-    const btn = document.getElementById('ask-ai-trigger');
+    const btn = document.getElementById('dobby-ai-trigger');
     expect(btn.style.display).toBe('block');
     vi.useRealTimers();
   });
@@ -116,7 +145,7 @@ describe('event-driven behavior', () => {
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     vi.advanceTimersByTime(20);
 
-    const btn = document.getElementById('ask-ai-trigger');
+    const btn = document.getElementById('dobby-ai-trigger');
     expect(btn.style.display).toBe('none');
     vi.useRealTimers();
   });
@@ -125,19 +154,35 @@ describe('event-driven behavior', () => {
     createTriggerButton();
     showTrigger({ right: 200, top: 100 });
 
-    const btn = document.getElementById('ask-ai-trigger');
+    const btn = document.getElementById('dobby-ai-trigger');
     expect(btn.style.display).toBe('block');
 
-    // Click on document body (not on trigger)
     document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     expect(btn.style.display).toBe('none');
   });
 
   it('uses textContent instead of innerHTML for security', () => {
     createTriggerButton();
-    const btn = document.getElementById('ask-ai-trigger');
-    expect(btn.textContent).toContain('Ask AI');
-    // Verify no innerHTML was used (textContent should match)
-    expect(btn.textContent).toBe('✦ Ask AI');
+    const btn = document.getElementById('dobby-ai-trigger');
+    expect(btn.textContent).toContain('Dobby AI');
+    expect(btn.textContent).toBe('\u2726 Dobby AI');
+  });
+});
+
+// Errata item 9: preset selector tests
+describe('preset selector', () => {
+  it('shows preset buttons from getSuggestedPresetsForType', () => {
+    createTriggerButton();
+    window.getSelection = vi.fn(() => ({
+      toString: () => 'test text',
+      anchorNode: document.body,
+      rangeCount: 1,
+      getRangeAt: () => ({ getBoundingClientRect: () => ({ top: 100, right: 200, bottom: 120, left: 100 }) }),
+    }));
+    showTrigger({ right: 200, top: 100 });
+    const btn = document.getElementById('dobby-ai-trigger');
+    btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    const presets = document.getElementById('dobby-ai-presets');
+    expect(presets).not.toBeNull();
   });
 });

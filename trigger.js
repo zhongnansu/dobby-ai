@@ -1,26 +1,23 @@
-// Floating "Ask AI" trigger button on text selection
+// trigger.js — Floating "Dobby AI" trigger button + preset selector
 //
-// Dependencies (loaded via manifest.json content_scripts, shared global scope):
-// - showPopup(text, anchorNode) from popup.js
-// - popupContainer from popup.js
-
-/**
- * Shows a floating trigger button near text selection.
- * On click, calls showPopup(text, anchorNode) from popup.js.
- *
- * Exported functions (global scope):
- * - showTrigger(rect) — position and show the trigger button
- * - hideTrigger() — hide the trigger button
- */
+// Dependencies (shared global scope via manifest.json content_scripts):
+// - detectContent(text) from detection.js
+// - getSuggestedPresetsForType(type, subType) from presets.js
+// - buildChatMessages(text, instruction, includePageContext) from prompt.js
+// - showBubble(rect, messages) from bubble.js
+// - hideBubble() from bubble.js
 
 let triggerButton = null;
+let presetSelector = null;
+let lastSelectedText = '';
+let lastSelectionRect = null;
 
 function createTriggerButton() {
   if (triggerButton) return;
 
   triggerButton = document.createElement('div');
-  triggerButton.id = 'ask-ai-trigger';
-  triggerButton.textContent = '✦ Ask AI';
+  triggerButton.id = 'dobby-ai-trigger';
+  triggerButton.textContent = '\u2726 Dobby AI';
   Object.assign(triggerButton.style, {
     position: 'fixed',
     zIndex: '2147483647',
@@ -48,17 +45,133 @@ function createTriggerButton() {
     const selection = window.getSelection();
     const text = selection.toString().trim();
     if (text) {
-      showPopup(text, selection.anchorNode);
+      lastSelectedText = text;
+      lastSelectionRect = selection.rangeCount > 0
+        ? selection.getRangeAt(0).getBoundingClientRect()
+        : null;
+      showPresetSelector();
     }
   });
 
   document.body.appendChild(triggerButton);
 }
 
+function showPresetSelector() {
+  hidePresetSelector();
+  hideTrigger();
+
+  const detected = typeof detectContent === 'function'
+    ? detectContent(lastSelectedText)
+    : { type: 'general', subType: null, confidence: 'medium' };
+
+  const presets = typeof getSuggestedPresetsForType === 'function'
+    ? getSuggestedPresetsForType(detected.type, detected.subType)
+    : [];
+
+  presetSelector = document.createElement('div');
+  presetSelector.id = 'dobby-ai-presets';
+  Object.assign(presetSelector.style, {
+    position: 'fixed',
+    zIndex: '2147483647',
+    left: triggerButton ? triggerButton.style.left : '100px',
+    top: triggerButton ? triggerButton.style.top : '100px',
+    background: 'rgba(255, 255, 255, 0.92)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    borderRadius: '12px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+    border: '1px solid rgba(0,0,0,0.08)',
+    padding: '8px',
+    width: '220px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: '13px',
+  });
+
+  // Detection badge
+  if (detected.type !== 'general') {
+    const badge = document.createElement('div');
+    badge.textContent = `\ud83d\udcdd ${detected.subType || detected.type} detected`;
+    Object.assign(badge.style, {
+      padding: '4px 8px',
+      fontSize: '11px',
+      color: '#6b7280',
+      borderBottom: '1px solid rgba(0,0,0,0.06)',
+      marginBottom: '4px',
+    });
+    presetSelector.appendChild(badge);
+  }
+
+  // Preset buttons
+  presets.slice(0, 4).forEach((preset) => {
+    const btn = document.createElement('div');
+    btn.textContent = preset.label;
+    Object.assign(btn.style, {
+      padding: '6px 8px',
+      cursor: 'pointer',
+      borderRadius: '6px',
+      color: '#18181b',
+    });
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(79,70,229,0.08)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'none'; });
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      launchBubble(preset.instruction);
+    });
+    presetSelector.appendChild(btn);
+  });
+
+  // Custom input
+  const separator = document.createElement('div');
+  separator.style.borderTop = '1px solid rgba(0,0,0,0.06)';
+  separator.style.margin = '4px 0';
+  presetSelector.appendChild(separator);
+
+  const customInput = document.createElement('input');
+  customInput.placeholder = 'Custom prompt...';
+  Object.assign(customInput.style, {
+    width: '100%',
+    border: '1px solid rgba(0,0,0,0.1)',
+    borderRadius: '6px',
+    padding: '6px 8px',
+    fontSize: '13px',
+    outline: 'none',
+    boxSizing: 'border-box',
+  });
+  customInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && customInput.value.trim()) {
+      launchBubble(customInput.value.trim());
+    }
+    if (e.key === 'Escape') {
+      hidePresetSelector();
+    }
+  });
+  presetSelector.appendChild(customInput);
+
+  document.body.appendChild(presetSelector);
+  setTimeout(() => customInput.focus(), 10);
+}
+
+function launchBubble(instruction) {
+  hidePresetSelector();
+  const messages = typeof buildChatMessages === 'function'
+    ? buildChatMessages(lastSelectedText, instruction, true)
+    : [{ role: 'user', content: `${instruction}:\n\n${lastSelectedText}` }];
+
+  const rect = lastSelectionRect || { bottom: 200, left: 100, right: 300 };
+  showBubble(rect, messages);
+}
+
+function hidePresetSelector() {
+  if (presetSelector && presetSelector.parentNode) {
+    presetSelector.parentNode.removeChild(presetSelector);
+  }
+  presetSelector = null;
+}
+
 function showTrigger(rect) {
   createTriggerButton();
   triggerButton.style.display = 'block';
-  // Clamp to viewport so button doesn't render off-screen
   const buttonWidth = triggerButton.offsetWidth || 80;
   const maxLeft = window.innerWidth - buttonWidth - 8;
   triggerButton.style.left = `${Math.min(rect.right, maxLeft)}px`;
@@ -73,9 +186,13 @@ function hideTrigger() {
 
 // Listen for text selection
 document.addEventListener('mouseup', (e) => {
-  // Ignore clicks on our own UI
   if (triggerButton?.contains(e.target)) return;
-  if (typeof popupContainer !== 'undefined' && popupContainer?.contains(e.target)) return;
+  if (presetSelector?.contains(e.target)) return;
+  // Errata #11: use _getBubbleContainer instead of bubbleHost
+  if (typeof _getBubbleContainer === 'function') {
+    const bc = _getBubbleContainer();
+    if (bc?.contains(e.target)) return;
+  }
 
   setTimeout(() => {
     const selection = window.getSelection();
@@ -110,16 +227,23 @@ window.addEventListener('scroll', () => {
 // Hide on click away
 document.addEventListener('mousedown', (e) => {
   if (triggerButton?.contains(e.target)) return;
-  if (typeof popupContainer !== 'undefined' && popupContainer?.contains(e.target)) return;
+  if (presetSelector?.contains(e.target)) return;
+  if (typeof _getBubbleContainer === 'function') {
+    const bc = _getBubbleContainer();
+    if (bc?.contains(e.target)) return;
+  }
   hideTrigger();
+  hidePresetSelector();
 });
 
-// Reset internal state (for testing only)
 function _resetTriggerForTesting() {
   if (triggerButton && triggerButton.parentNode) {
     triggerButton.parentNode.removeChild(triggerButton);
   }
   triggerButton = null;
+  hidePresetSelector();
+  lastSelectedText = '';
+  lastSelectionRect = null;
 }
 
 if (typeof module !== 'undefined') module.exports = { createTriggerButton, showTrigger, hideTrigger, _resetTriggerForTesting };
