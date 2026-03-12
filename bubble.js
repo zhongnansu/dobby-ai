@@ -271,11 +271,18 @@ function showBubble(selectionRect, messages, selectedText, instruction) {
 
   bubbleHost = document.createElement('div');
   bubbleHost.id = 'dobby-ai-bubble';
+  const bubbleHeight = 420; // max-height of .bubble
+  const gap = 8;
+  const preferredTop = selectionRect.bottom + gap;
+  const wouldOverflow = preferredTop + bubbleHeight > window.innerHeight;
+  const top = wouldOverflow
+    ? Math.max(gap, (selectionRect.top || selectionRect.bottom) - bubbleHeight - gap)
+    : preferredTop;
   Object.assign(bubbleHost.style, {
     position: 'fixed',
     zIndex: '2147483647',
     left: `${Math.max(8, (selectionRect.left + selectionRect.right) / 2 - 190)}px`,
-    top: `${selectionRect.bottom + 8}px`,
+    top: `${top}px`,
   });
 
   const shadow = bubbleHost.attachShadow({ mode: 'open' });

@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock dependencies
+global.detectContentType = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
 global.detectContent = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
 global.getSuggestedPresetsForType = vi.fn(() => [
   { id: 'explain', label: 'Explain this', instruction: 'Explain the following' },

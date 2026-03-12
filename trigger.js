@@ -1,7 +1,7 @@
 // trigger.js — Floating "Dobby AI" trigger button + preset selector
 //
 // Dependencies (shared global scope via manifest.json content_scripts):
-// - detectContent(text) from detection.js
+// - detectContentType(text, anchorNode) from detection.js
 // - getSuggestedPresetsForType(type, subType) from presets.js
 // - buildChatMessages(text, instruction, includePageContext) from prompt.js
 // - showBubble(rect, messages) from bubble.js
@@ -11,6 +11,7 @@ let triggerButton = null;
 let presetSelector = null;
 let lastSelectedText = '';
 let lastSelectionRect = null;
+let lastAnchorNode = null;
 
 function createTriggerButton() {
   if (triggerButton) return;
@@ -46,6 +47,7 @@ function createTriggerButton() {
     const text = selection.toString().trim();
     if (text) {
       lastSelectedText = text;
+      lastAnchorNode = selection.anchorNode || null;
       lastSelectionRect = selection.rangeCount > 0
         ? selection.getRangeAt(0).getBoundingClientRect()
         : null;
@@ -60,9 +62,11 @@ function showPresetSelector() {
   hidePresetSelector();
   hideTrigger();
 
-  const detected = typeof detectContent === 'function'
-    ? detectContent(lastSelectedText)
-    : { type: 'default', subType: null, confidence: 'medium' };
+  const detected = typeof detectContentType === 'function'
+    ? detectContentType(lastSelectedText, lastAnchorNode)
+    : (typeof detectContent === 'function'
+      ? detectContent(lastSelectedText)
+      : { type: 'default', subType: null, confidence: 'medium' });
 
   const presets = typeof getSuggestedPresetsForType === 'function'
     ? getSuggestedPresetsForType(detected.type, detected.subType)
@@ -264,6 +268,7 @@ function _resetTriggerForTesting() {
   hidePresetSelector();
   lastSelectedText = '';
   lastSelectionRect = null;
+  lastAnchorNode = null;
 }
 
 if (typeof module !== 'undefined') module.exports = { createTriggerButton, showTrigger, hideTrigger, _resetTriggerForTesting };

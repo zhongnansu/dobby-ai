@@ -60,6 +60,15 @@ export async function computeHmac(message, secret) {
     .join('');
 }
 
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 export async function verifyHmac(body, secret) {
   const { messages, signature, timestamp } = body;
   const now = Math.floor(Date.now() / 1000);
@@ -70,5 +79,5 @@ export async function verifyHmac(body, secret) {
 
   const payload = `${timestamp}${JSON.stringify(messages)}`;
   const expected = await computeHmac(payload, secret);
-  return expected === signature;
+  return timingSafeEqual(expected, signature);
 }
