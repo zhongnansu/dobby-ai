@@ -1,15 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Ask AI",
-  "version": "1.1.0",
-  "description": "Select text and send it to ChatGPT or Claude with smart prompts",
-  "permissions": ["contextMenus", "activeTab", "storage"],
+  "name": "Dobby AI",
+  "version": "2.0.0",
+  "description": "Select text and get instant AI explanations inline on any page",
+  "permissions": ["contextMenus", "activeTab", "storage", "notifications"],
+  "host_permissions": [
+    "https://*.workers.dev/*",
+    "https://api.openai.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [{
     "matches": ["<all_urls>"],
-    "js": ["detection.js", "presets.js", "prompt.js", "trigger.js", "popup.js", "content.js"]
+    "js": ["detection.js", "presets.js", "prompt.js", "history.js", "api.js", "bubble.js", "trigger.js", "content.js"]
   }],
   "icons": {
     "16": "icons/icon16.png",
