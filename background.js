@@ -5,6 +5,8 @@ const PROXY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/chat';
 // HMAC_SECRET is intentionally in extension source — it's light obfuscation per spec.
 // Real defense is IP rate limiting on the proxy.
 const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';
+// Set to your dev token to bypass rate limits during development; leave empty for normal user behavior
+const DEV_BYPASS_TOKEN = '';
 
 // --- Context Menu ---
 
@@ -120,9 +122,11 @@ chrome.runtime.onConnect.addListener((port) => {
         // Via proxy with HMAC signing
         const timestamp = Math.floor(Date.now() / 1000);
         const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
+        const headers = { 'Content-Type': 'application/json' };
+        if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
         response = await fetch(PROXY_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ messages, signature, timestamp }),
           signal: abortController.signal,
         });

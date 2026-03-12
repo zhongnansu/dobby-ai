@@ -440,36 +440,13 @@ function showRateLimitUI(shadow) {
   body.innerHTML = `
     <div class="rate-limit-msg">
       <p>You've used your 30 free questions today.</p>
-      <span class="cta">Add your own API key for unlimited access \u2192</span>
-      <div class="api-key-form" style="display:none">
-        <input type="password" placeholder="sk-..." />
-        <button>Save</button>
-      </div>
-      <p class="api-key-status" style="margin-top:8px;font-size:12px"></p>
+      <p style="margin-top:8px">Add your own API key in Settings for unlimited access.</p>
+      <span class="cta">Open Settings \u2192</span>
     </div>
   `;
 
-  const cta = body.querySelector('.cta');
-  const form = body.querySelector('.api-key-form');
-  cta.addEventListener('click', () => {
-    form.style.display = 'flex';
-    cta.style.display = 'none';
-  });
-
-  form.querySelector('button').addEventListener('click', () => {
-    const key = form.querySelector('input').value.trim();
-    if (!key) return;
-    const status = body.querySelector('.api-key-status');
-    status.textContent = 'Validating...';
-    chrome.runtime.sendMessage({ type: 'VALIDATE_API_KEY', apiKey: key }, (res) => {
-      if (res && res.valid) {
-        status.textContent = 'Key saved! You now have unlimited access.';
-        status.style.color = '#22c55e';
-      } else {
-        status.textContent = res?.error || 'Invalid API key \u2014 please check and try again';
-        status.style.color = '#ef4444';
-      }
-    });
+  shadow.querySelector('.cta').addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
   });
 }
 

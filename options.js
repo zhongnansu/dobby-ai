@@ -78,3 +78,13 @@ removeBtn.addEventListener('click', () => {
     showNoKey();
   });
 });
+
+// Provider tab switching
+document.querySelectorAll('.provider-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.provider-tab').forEach((t) => t.classList.remove('active'));
+    document.querySelectorAll('.provider-panel').forEach((p) => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`panel-${tab.dataset.provider}`).classList.add('active');
+  });
+});

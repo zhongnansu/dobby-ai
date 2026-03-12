@@ -80,7 +80,11 @@ export default {
     }
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const rateResult = await checkRateLimit(ip, env.RATE_LIMIT_KV);
+    const devBypass = env.DEV_BYPASS_TOKEN
+      && request.headers.get('X-Dev-Token') === env.DEV_BYPASS_TOKEN;
+    const rateResult = devBypass
+      ? { allowed: true, remaining: 999 }
+      : await checkRateLimit(ip, env.RATE_LIMIT_KV);
     if (!rateResult.allowed) {
       return jsonResponse(
         { error: rateResult.reason, remaining: rateResult.remaining ?? 0 },
@@ -90,7 +94,7 @@ export default {
       );
     }
 
-    await incrementCounters(ip, env.RATE_LIMIT_KV);
+    if (!devBypass) await incrementCounters(ip, env.RATE_LIMIT_KV);
 
     const openaiResponse = await createChatStream(body.messages, env.OPENAI_API_KEY);
 
