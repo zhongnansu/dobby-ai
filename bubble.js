@@ -353,28 +353,35 @@ function activateResponseSection(shadow, messages) {
   startStreaming(shadow, messages);
 }
 
-// Show bubble with preset selection first, then expand to show response
-function showBubbleWithPresets(selectionRect, selectedText, anchorNode) {
-  hideBubble();
+function truncatePreview(text, maxLen = 120) {
+  if (!text) return '';
+  return text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
+}
 
-  const theme = detectTheme();
+function initBubble(selectionRect, selectedText, previewLabel, showPresets) {
+  hideBubble();
   responseText = '';
 
   createBubbleHost(selectionRect);
   const shadow = bubbleHost.attachShadow({ mode: 'open' });
 
   const style = document.createElement('style');
-  style.textContent = getStyles(theme);
+  style.textContent = getStyles(detectTheme());
   shadow.appendChild(style);
-
-  const previewText = selectedText
-    ? (selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText)
-    : '';
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.innerHTML = buildBubbleHTML(previewText, 'Selected text', true);
+  bubble.innerHTML = buildBubbleHTML(truncatePreview(selectedText), previewLabel, showPresets);
   shadow.appendChild(bubble);
+
+  wireCommonEvents(shadow);
+  document.body.appendChild(bubbleHost);
+  return shadow;
+}
+
+// Show bubble with preset selection first, then expand to show response
+function showBubbleWithPresets(selectionRect, selectedText, anchorNode) {
+  const shadow = initBubble(selectionRect, selectedText, 'Selected text', true);
 
   // Detect content type and populate presets
   const detected = typeof detectContentType === 'function'
@@ -424,9 +431,6 @@ function showBubbleWithPresets(selectionRect, selectedText, anchorNode) {
     if (e.key === 'Escape') hideBubble();
   });
   presetsSection.appendChild(customInput);
-
-  wireCommonEvents(shadow);
-  document.body.appendChild(bubbleHost);
 }
 
 function launchFromPreset(shadow, selectedText, instruction) {
@@ -444,37 +448,9 @@ function launchFromPreset(shadow, selectedText, instruction) {
 
 // Direct bubble (used by context menu — no preset selection needed)
 function showBubble(selectionRect, messages, selectedText, instruction) {
-  hideBubble();
-
-  const theme = detectTheme();
   currentMessages = messages;
-  responseText = '';
-
-  createBubbleHost(selectionRect);
-  const shadow = bubbleHost.attachShadow({ mode: 'open' });
-
-  const style = document.createElement('style');
-  style.textContent = getStyles(theme);
-  shadow.appendChild(style);
-
-  const previewText = selectedText
-    ? (selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText)
-    : '';
-  const previewLabel = instruction || 'Selected text';
-
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.innerHTML = buildBubbleHTML(previewText, previewLabel, false);
-  shadow.appendChild(bubble);
-
-  // Show response section immediately for direct calls
-  shadow.querySelector('.response-section').classList.add('active');
-  shadow.querySelector('.bubble-status').textContent = 'thinking...';
-
-  wireCommonEvents(shadow);
-  document.body.appendChild(bubbleHost);
-
-  startStreaming(shadow, messages);
+  const shadow = initBubble(selectionRect, selectedText, instruction || 'Selected text', false);
+  activateResponseSection(shadow, messages);
 }
 
 function startStreaming(shadow, messages) {

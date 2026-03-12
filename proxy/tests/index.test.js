@@ -106,11 +106,7 @@ describe('POST /chat', () => {
     verifyHmac.mockResolvedValue(true);
     checkRateLimit.mockResolvedValue({ allowed: true, remaining: 29 });
     incrementCounters.mockResolvedValue();
-    createChatStream.mockResolvedValue({
-      ok: true,
-      status: 200,
-      body: new ReadableStream(),
-    });
+    createChatStream.mockResolvedValue({ ok: true, status: 200, body: new ReadableStream() });
   });
 
   it('returns 400 when payload validation fails', async () => {
@@ -216,11 +212,7 @@ describe('dev bypass token', () => {
     verifyHmac.mockResolvedValue(true);
     checkRateLimit.mockResolvedValue({ allowed: true, remaining: 29 });
     incrementCounters.mockResolvedValue();
-    createChatStream.mockResolvedValue({
-      ok: true,
-      status: 200,
-      body: new ReadableStream(),
-    });
+    createChatStream.mockResolvedValue({ ok: true, status: 200, body: new ReadableStream() });
   });
 
   it('skips rate limiting when X-Dev-Token matches DEV_BYPASS_TOKEN', async () => {

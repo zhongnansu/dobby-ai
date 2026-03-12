@@ -83,7 +83,7 @@ export default {
     const devBypass = env.DEV_BYPASS_TOKEN
       && request.headers.get('X-Dev-Token') === env.DEV_BYPASS_TOKEN;
     const rateResult = devBypass
-      ? { allowed: true, remaining: 999 }
+      ? { allowed: true, remaining: null }
       : await checkRateLimit(ip, env.RATE_LIMIT_KV);
     if (!rateResult.allowed) {
       return jsonResponse(
