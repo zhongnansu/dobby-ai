@@ -11,6 +11,74 @@ chrome.runtime.onInstalled.addListener(() => {
 const BG_MAX_TEXT_LENGTH = 6000;
 const BG_MAX_URL_LENGTH = 12000;
 
+// Popup window tracking
+let popupWindowId = null;
+
+// Clear tracked popup when user closes it
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (windowId === popupWindowId) {
+    popupWindowId = null;
+  }
+});
+
+/**
+ * Open a URL in the preferred mode: 'popup' window or 'tab'.
+ * Falls back to chrome.tabs.create if chrome.windows.create fails.
+ */
+function openInPreferredMode(url, openMode) {
+  if (openMode === 'tab') {
+    chrome.tabs.create({ url });
+    return;
+  }
+
+  // Popup mode: reuse existing popup window if still open
+  if (popupWindowId !== null) {
+    chrome.windows.get(popupWindowId, { populate: true }, (win) => {
+      if (chrome.runtime.lastError || !win) {
+        // Window was closed or invalid — create new one
+        popupWindowId = null;
+        createPopupWindow(url);
+      } else {
+        // Navigate existing popup's tab
+        const tabId = win.tabs && win.tabs[0] && win.tabs[0].id;
+        if (tabId) {
+          chrome.tabs.update(tabId, { url });
+          chrome.windows.update(popupWindowId, { focused: true });
+        } else {
+          createPopupWindow(url);
+        }
+      }
+    });
+    return;
+  }
+
+  createPopupWindow(url);
+}
+
+function createPopupWindow(url) {
+  chrome.windows.getCurrent({}, (currentWindow) => {
+    const left = (currentWindow.left || 0) + (currentWindow.width || 800) - 440;
+    const top = (currentWindow.top || 0) + 80;
+
+    chrome.windows.create({
+      url,
+      type: 'popup',
+      width: 420,
+      height: 650,
+      left,
+      top,
+    }, (win) => {
+      if (chrome.runtime.lastError || !win) {
+        // Fallback to tab if popup creation fails
+        popupWindowId = null;
+        chrome.tabs.create({ url });
+      } else {
+        popupWindowId = win.id;
+      }
+    });
+  });
+}
+
 // Handle context menu click
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'ask-ai') {
@@ -25,9 +93,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       text: selectionText
     }).catch(() => {
       // Content script not available (CSP-blocked page) — open directly
-      // Uses stored AI preference and page context toggle
-      chrome.storage.local.get(['lastAI', 'pageContext'], (stored) => {
+      // Uses stored AI preference, page context toggle, and open mode
+      chrome.storage.local.get(['lastAI', 'pageContext', 'openMode'], (stored) => {
         const ai = stored.lastAI || 'chatgpt';
+        const openMode = stored.openMode || 'popup';
         const baseUrls = {
           chatgpt: 'https://chatgpt.com/',
           claude: 'https://claude.ai/new'
@@ -48,9 +117,9 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         const fullUrl = `${baseUrls[ai]}?q=${encoded}`;
 
         if (fullUrl.length > BG_MAX_URL_LENGTH) {
-          chrome.tabs.create({ url: baseUrls[ai] });
+          openInPreferredMode(baseUrls[ai], openMode);
         } else {
-          chrome.tabs.create({ url: fullUrl });
+          openInPreferredMode(fullUrl, openMode);
         }
       });
     });
@@ -66,10 +135,19 @@ function isAllowedUrl(url) {
 
 // Handle open-tab requests from content script
 chrome.runtime.onMessage.addListener((msg, sender) => {
+  const openMode = msg.openMode || 'popup';
   if (msg.type === 'OPEN_AI_TAB' && isAllowedUrl(msg.url)) {
-    chrome.tabs.create({ url: msg.url });
+    openInPreferredMode(msg.url, openMode);
   }
   if (msg.type === 'COPY_AND_OPEN' && isAllowedUrl(msg.url)) {
-    chrome.tabs.create({ url: msg.url });
+    openInPreferredMode(msg.url, openMode);
   }
 });
+
+// Reset popup window tracking (test helper, no-op in production)
+function _resetPopupWindowIdForTesting() {
+  popupWindowId = null;
+}
+
+// Export for testing (no-op in browser)
+if (typeof module !== 'undefined') module.exports = { _resetPopupWindowIdForTesting };

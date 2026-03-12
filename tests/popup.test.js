@@ -319,7 +319,7 @@ describe('showPopup and hidePopup', () => {
   it('calls chrome.storage.local.get to load preferences', () => {
     showPopup('hello', null);
     expect(chrome.storage.local.get).toHaveBeenCalledWith(
-      ['lastAI', 'pageContext'],
+      ['lastAI', 'pageContext', 'openMode'],
       expect.any(Function)
     );
   });
