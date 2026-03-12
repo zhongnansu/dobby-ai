@@ -13,13 +13,10 @@ let currentRequest = null;
 let renderTimer = null;
 
 function detectTheme() {
-  const bg = getComputedStyle(document.body).backgroundColor;
-  if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return 'light';
-  const match = bg.match(/\d+/g);
-  if (!match) return 'light';
-  const [r, g, b] = match.map(Number);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance < 0.5 ? 'dark' : 'light';
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
 }
 
 function escapeHtml(text) {

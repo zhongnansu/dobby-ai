@@ -134,19 +134,23 @@ describe('bubble.js', () => {
   });
 
   describe('detectTheme', () => {
-    it('returns light for white background', () => {
-      document.body.style.backgroundColor = 'rgb(255, 255, 255)';
+    it('returns light when OS prefers light', () => {
+      window.matchMedia = vi.fn(() => ({ matches: false }));
       expect(detectTheme()).toBe('light');
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
-    it('returns dark for dark background', () => {
-      document.body.style.backgroundColor = 'rgb(30, 30, 30)';
+    it('returns dark when OS prefers dark', () => {
+      window.matchMedia = vi.fn(() => ({ matches: true }));
       expect(detectTheme()).toBe('dark');
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
-    it('defaults to light when no background set', () => {
-      document.body.style.backgroundColor = '';
+    it('defaults to light when matchMedia unavailable', () => {
+      const original = window.matchMedia;
+      window.matchMedia = undefined;
       expect(detectTheme()).toBe('light');
+      window.matchMedia = original;
     });
   });
 

@@ -72,6 +72,10 @@ function showPresetSelector() {
     ? getSuggestedPresetsForType(detected.type, detected.subType)
     : [];
 
+  const isDark = typeof detectTheme === 'function'
+    ? detectTheme() === 'dark'
+    : (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+
   presetSelector = document.createElement('div');
   presetSelector.id = 'dobby-ai-presets';
   Object.assign(presetSelector.style, {
@@ -79,35 +83,36 @@ function showPresetSelector() {
     zIndex: '2147483647',
     left: triggerButton ? triggerButton.style.left : '100px',
     top: triggerButton ? triggerButton.style.top : '100px',
-    background: 'rgba(255, 255, 255, 0.92)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
+    background: isDark ? 'rgba(30, 30, 40, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+    backdropFilter: 'blur(16px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(180%)',
     borderRadius: '12px',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-    border: '1px solid rgba(0,0,0,0.08)',
-    padding: '8px',
-    width: '280px',
+    boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.15)',
+    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+    padding: '6px',
+    width: '240px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '13px',
+    fontSize: '12px',
+    color: isDark ? '#e4e4e7' : '#18181b',
   });
 
-  // Selected text preview — shows the user what text was captured
+  // Selected text preview
   const preview = document.createElement('div');
-  const previewText = lastSelectedText.length > 100
-    ? lastSelectedText.substring(0, 100) + '...'
+  const previewText = lastSelectedText.length > 80
+    ? lastSelectedText.substring(0, 80) + '...'
     : lastSelectedText;
   Object.assign(preview.style, {
-    padding: '6px 8px',
-    fontSize: '12px',
-    color: '#52525b',
-    background: 'rgba(79, 70, 229, 0.05)',
+    padding: '5px 7px',
+    fontSize: '11px',
+    color: isDark ? '#a1a1aa' : '#71717a',
+    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
     borderRadius: '6px',
-    marginBottom: '6px',
-    lineHeight: '1.4',
-    maxHeight: '52px',
+    marginBottom: '4px',
+    lineHeight: '1.35',
+    maxHeight: '42px',
     overflow: 'hidden',
     wordBreak: 'break-word',
-    borderLeft: '3px solid rgba(79, 70, 229, 0.4)',
+    borderLeft: isDark ? '2px solid rgba(167,139,250,0.5)' : '2px solid rgba(124,58,237,0.3)',
   });
   preview.textContent = previewText;
   presetSelector.appendChild(preview);
@@ -117,50 +122,60 @@ function showPresetSelector() {
     const badge = document.createElement('div');
     badge.textContent = `${detected.subType || detected.type} detected`;
     Object.assign(badge.style, {
-      padding: '2px 8px 4px',
-      fontSize: '11px',
-      color: '#7c3aed',
+      padding: '1px 7px 3px',
+      fontSize: '10px',
+      color: isDark ? '#a78bfa' : '#7c3aed',
       fontWeight: '500',
     });
     presetSelector.appendChild(badge);
   }
 
-  // Preset buttons
+  // Preset buttons — compact inline chips
+  const presetsRow = document.createElement('div');
+  Object.assign(presetsRow.style, {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '4px',
+    padding: '2px 2px 4px',
+  });
   presets.slice(0, 4).forEach((preset) => {
     const btn = document.createElement('div');
     btn.textContent = preset.label;
     Object.assign(btn.style, {
-      padding: '6px 8px',
+      padding: '3px 8px',
       cursor: 'pointer',
-      borderRadius: '6px',
-      color: '#18181b',
+      borderRadius: '10px',
+      fontSize: '11px',
+      color: isDark ? '#e4e4e7' : '#18181b',
+      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+      whiteSpace: 'nowrap',
     });
-    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(79,70,229,0.08)'; });
-    btn.addEventListener('mouseleave', () => { btn.style.background = 'none'; });
+    const hoverBg = isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)';
+    const defaultBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+    btn.addEventListener('mouseenter', () => { btn.style.background = hoverBg; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = defaultBg; });
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
       launchBubble(preset.instruction);
     });
-    presetSelector.appendChild(btn);
+    presetsRow.appendChild(btn);
   });
+  presetSelector.appendChild(presetsRow);
 
   // Custom input
-  const separator = document.createElement('div');
-  separator.style.borderTop = '1px solid rgba(0,0,0,0.06)';
-  separator.style.margin = '4px 0';
-  presetSelector.appendChild(separator);
-
   const customInput = document.createElement('input');
   customInput.placeholder = 'Custom prompt...';
   Object.assign(customInput.style, {
     width: '100%',
-    border: '1px solid rgba(0,0,0,0.1)',
-    borderRadius: '6px',
-    padding: '6px 8px',
-    fontSize: '13px',
+    border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.1)',
+    borderRadius: '8px',
+    padding: '5px 8px',
+    fontSize: '11px',
     outline: 'none',
     boxSizing: 'border-box',
+    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+    color: isDark ? '#e4e4e7' : '#18181b',
   });
   customInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && customInput.value.trim()) {
