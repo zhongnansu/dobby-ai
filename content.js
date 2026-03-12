@@ -10,8 +10,9 @@ chrome.runtime.onMessage.addListener((msg) => {
       right: window.innerWidth * 3 / 4,
     };
     // Default instruction when no preset selected (context menu path)
-    const messages = buildChatMessages(msg.text, 'Explain the following', true);
-    showBubble(rect, messages);
+    const instruction = 'Explain the following';
+    const messages = buildChatMessages(msg.text, instruction, true);
+    showBubble(rect, messages, msg.text, instruction);
   }
 });
 

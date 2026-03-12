@@ -1,6 +1,11 @@
 // tests/prompt.test.js
 import { buildChatMessages, buildFollowUp, MAX_TEXT_LENGTH } from '../prompt.js';
 
+const SYSTEM_MSG = {
+  role: 'system',
+  content: 'You are Dobby AI, a helpful assistant. The user has selected text on a webpage and wants you to help with it. Be concise and clear.',
+};
+
 describe('MAX_TEXT_LENGTH', () => {
   it('is 6000', () => {
     expect(MAX_TEXT_LENGTH).toBe(6000);
@@ -8,57 +13,64 @@ describe('MAX_TEXT_LENGTH', () => {
 });
 
 describe('buildChatMessages', () => {
-  it('returns messages array with user message', () => {
+  it('always includes system message', () => {
     const result = buildChatMessages('hello world', '', false);
-    expect(result).toEqual([{ role: 'user', content: 'hello world' }]);
+    expect(result[0]).toEqual(SYSTEM_MSG);
   });
 
-  it('adds system message when instruction is provided', () => {
+  it('puts raw text in user message when no instruction', () => {
+    const result = buildChatMessages('hello world', '', false);
+    expect(result.length).toBe(2);
+    expect(result[1]).toEqual({ role: 'user', content: 'hello world' });
+  });
+
+  it('combines instruction and text in user message', () => {
     const result = buildChatMessages('code here', 'Explain this code', false);
-    expect(result).toEqual([
-      { role: 'system', content: 'Explain this code' },
-      { role: 'user', content: 'code here' },
-    ]);
+    expect(result.length).toBe(2);
+    expect(result[0]).toEqual(SYSTEM_MSG);
+    expect(result[1]).toEqual({ role: 'user', content: 'Explain this code:\n\ncode here' });
   });
 
-  it('skips system message for empty instruction', () => {
-    const result = buildChatMessages('text', '', false);
-    expect(result.length).toBe(1);
-    expect(result[0].role).toBe('user');
-  });
-
-  it('skips system message for null instruction', () => {
+  it('handles null instruction like empty', () => {
     const result = buildChatMessages('text', null, false);
-    expect(result.length).toBe(1);
+    expect(result.length).toBe(2);
+    expect(result[1].content).toBe('text');
   });
 
   it('truncates text longer than MAX_TEXT_LENGTH', () => {
     const longText = 'a'.repeat(MAX_TEXT_LENGTH + 500);
     const result = buildChatMessages(longText, '', false);
-    expect(result[0].content.length).toBe(MAX_TEXT_LENGTH + '...[truncated]'.length);
-    expect(result[0].content).toContain('...[truncated]');
+    const userContent = result[1].content;
+    expect(userContent.length).toBe(MAX_TEXT_LENGTH + '...[truncated]'.length);
+    expect(userContent).toContain('...[truncated]');
   });
 
   it('does not truncate text at MAX_TEXT_LENGTH exactly', () => {
     const text = 'a'.repeat(MAX_TEXT_LENGTH);
     const result = buildChatMessages(text, '', false);
-    expect(result[0].content).toBe(text);
+    expect(result[1].content).toBe(text);
   });
 
   it('appends page context when includePageContext is true', () => {
     const result = buildChatMessages('hello', '', true);
-    expect(result[0].content).toContain('From:');
+    expect(result[1].content).toContain('(Source:');
   });
 
   it('does not append page context when false', () => {
     const result = buildChatMessages('hello', '', false);
-    expect(result[0].content).not.toContain('From:');
+    expect(result[1].content).not.toContain('(Source:');
   });
 
-  it('preserves whitespace and newlines', () => {
+  it('preserves whitespace and newlines in text', () => {
     const text = '  line one\n  line two';
     const result = buildChatMessages(text, '', false);
-    expect(result[0].content).toBe(text);
+    expect(result[1].content).toBe(text);
+  });
+
+  it('instruction + text + page context are combined correctly', () => {
+    const result = buildChatMessages('some text', 'Summarize the following', true);
+    const content = result[1].content;
+    expect(content).toMatch(/^Summarize the following:\n\nsome text\n\n\(Source:/);
   });
 });
 

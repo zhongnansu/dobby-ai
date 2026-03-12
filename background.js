@@ -1,7 +1,7 @@
 // background.js — Dobby AI API relay + streaming hub
 // All API calls from content scripts route through here (MV3 cross-origin constraint)
 
-const PROXY_URL = 'https://dobby-ai-proxy.workers.dev/chat';
+const PROXY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/chat';
 // HMAC_SECRET is intentionally in extension source — it's light obfuscation per spec.
 // Real defense is IP rate limiting on the proxy.
 const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';

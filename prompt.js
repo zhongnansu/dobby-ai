@@ -16,15 +16,22 @@ function buildChatMessages(selectedText, instruction, includePageContext) {
 
   const messages = [];
 
-  if (instruction) {
-    messages.push({ role: 'system', content: instruction });
-  }
+  // System message sets the assistant's role
+  messages.push({
+    role: 'system',
+    content: 'You are Dobby AI, a helpful assistant. The user has selected text on a webpage and wants you to help with it. Be concise and clear.',
+  });
 
-  let userContent = text;
+  // Combine instruction + selected text in the user message so the model
+  // clearly knows what task to perform on which text
+  let userContent = instruction
+    ? `${instruction}:\n\n${text}`
+    : text;
+
   if (includePageContext) {
     const title = typeof document !== 'undefined' ? document.title : '';
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    userContent += `\n\nFrom: "${title}" (${url})`;
+    userContent += `\n\n(Source: "${title}" — ${url})`;
   }
 
   messages.push({ role: 'user', content: userContent });

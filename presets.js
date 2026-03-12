@@ -257,7 +257,7 @@ function getSuggestedPresetsForType(contentType, subType) {
   if (subType && contentType === 'foreign' && FOREIGN_SUBTYPE_PRESETS[subType]) {
     return FOREIGN_SUBTYPE_PRESETS[subType].suggested;
   }
-  return PRESETS[contentType].suggested;
+  return (PRESETS[contentType] || PRESETS['default']).suggested;
 }
 
 /**

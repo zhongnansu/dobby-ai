@@ -67,7 +67,7 @@ export async function incrementCounters(ip, kv) {
     kv.put(minKey, String(minCount + 1), { expirationTtl: 120 }),
     kv.put(dayKey, String(dayCount + 1), { expirationTtl: 86400 }),
     kv.put(globalKey, String(globalCount + 1), { expirationTtl: 86400 }),
-    kv.put(burstKey, String(burstCount + 1), { expirationTtl: 30 }),
+    kv.put(burstKey, String(burstCount + 1), { expirationTtl: 60 }),
   ];
 
   // Abuse detection: 10+ requests in 10 seconds → 1-hour block

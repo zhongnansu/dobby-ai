@@ -62,7 +62,7 @@ function showPresetSelector() {
 
   const detected = typeof detectContent === 'function'
     ? detectContent(lastSelectedText)
-    : { type: 'general', subType: null, confidence: 'medium' };
+    : { type: 'default', subType: null, confidence: 'medium' };
 
   const presets = typeof getSuggestedPresetsForType === 'function'
     ? getSuggestedPresetsForType(detected.type, detected.subType)
@@ -82,21 +82,41 @@ function showPresetSelector() {
     boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
     border: '1px solid rgba(0,0,0,0.08)',
     padding: '8px',
-    width: '220px',
+    width: '280px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '13px',
   });
 
+  // Selected text preview — shows the user what text was captured
+  const preview = document.createElement('div');
+  const previewText = lastSelectedText.length > 100
+    ? lastSelectedText.substring(0, 100) + '...'
+    : lastSelectedText;
+  Object.assign(preview.style, {
+    padding: '6px 8px',
+    fontSize: '12px',
+    color: '#52525b',
+    background: 'rgba(79, 70, 229, 0.05)',
+    borderRadius: '6px',
+    marginBottom: '6px',
+    lineHeight: '1.4',
+    maxHeight: '52px',
+    overflow: 'hidden',
+    wordBreak: 'break-word',
+    borderLeft: '3px solid rgba(79, 70, 229, 0.4)',
+  });
+  preview.textContent = previewText;
+  presetSelector.appendChild(preview);
+
   // Detection badge
-  if (detected.type !== 'general') {
+  if (detected.type !== 'default') {
     const badge = document.createElement('div');
-    badge.textContent = `\ud83d\udcdd ${detected.subType || detected.type} detected`;
+    badge.textContent = `${detected.subType || detected.type} detected`;
     Object.assign(badge.style, {
-      padding: '4px 8px',
+      padding: '2px 8px 4px',
       fontSize: '11px',
-      color: '#6b7280',
-      borderBottom: '1px solid rgba(0,0,0,0.06)',
-      marginBottom: '4px',
+      color: '#7c3aed',
+      fontWeight: '500',
     });
     presetSelector.appendChild(badge);
   }
@@ -149,7 +169,7 @@ function showPresetSelector() {
   presetSelector.appendChild(customInput);
 
   document.body.appendChild(presetSelector);
-  setTimeout(() => customInput.focus(), 10);
+  // Don't auto-focus the input — it clears the browser's text selection highlight
 }
 
 function launchBubble(instruction) {
@@ -159,7 +179,7 @@ function launchBubble(instruction) {
     : [{ role: 'user', content: `${instruction}:\n\n${lastSelectedText}` }];
 
   const rect = lastSelectionRect || { bottom: 200, left: 100, right: 300 };
-  showBubble(rect, messages);
+  showBubble(rect, messages, lastSelectedText, instruction);
 }
 
 function hidePresetSelector() {

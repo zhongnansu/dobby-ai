@@ -56,7 +56,7 @@ function getStyles(theme) {
     .bubble {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       width: 380px;
-      max-height: 300px;
+      max-height: 420px;
       border-radius: 16px;
       overflow: hidden;
       display: flex;
@@ -100,6 +100,30 @@ function getStyles(theme) {
       border-radius: 4px;
     }
     .close-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+    .selected-text-preview {
+      padding: 8px 14px;
+      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
+      font-size: 12px;
+      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      max-height: 60px;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+    .selected-text-preview .label {
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: ${isDark ? '#a78bfa' : '#7c3aed'};
+      margin-bottom: 2px;
+    }
+    .selected-text-preview .text {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
     .bubble-body {
       flex: 1;
       overflow-y: auto;
@@ -238,7 +262,7 @@ function getStyles(theme) {
   `;
 }
 
-function showBubble(selectionRect, messages) {
+function showBubble(selectionRect, messages, selectedText, instruction) {
   hideBubble();
 
   const theme = detectTheme();
@@ -260,6 +284,12 @@ function showBubble(selectionRect, messages) {
   style.textContent = getStyles(theme);
   shadow.appendChild(style);
 
+  // Build preview of selected text (truncate for display)
+  const previewText = selectedText
+    ? (selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText)
+    : '';
+  const previewLabel = instruction || 'Selected text';
+
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   bubble.innerHTML = `
@@ -268,6 +298,10 @@ function showBubble(selectionRect, messages) {
       <span class="bubble-status">thinking...</span>
       <button class="close-btn" title="Close">\u2715</button>
     </div>
+    ${previewText ? `<div class="selected-text-preview">
+      <div class="label">${escapeHtml(previewLabel)}</div>
+      <div class="text">${escapeHtml(previewText)}</div>
+    </div>` : ''}
     <div class="bubble-body">
       <div class="response-text"></div>
       <span class="cursor blink"></span>
