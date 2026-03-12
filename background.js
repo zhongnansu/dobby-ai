@@ -168,6 +168,10 @@ chrome.runtime.onConnect.addListener((port) => {
 // --- API Key Validation ---
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'OPEN_OPTIONS') {
+    chrome.runtime.openOptionsPage();
+    return;
+  }
   if (msg.type === 'VALIDATE_API_KEY') {
     fetch('https://api.openai.com/v1/models', {
       headers: {

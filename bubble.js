@@ -423,7 +423,7 @@ function showRateLimitUI(shadow) {
   `;
 
   shadow.querySelector('.cta').addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+    chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' });
   });
 }
 
