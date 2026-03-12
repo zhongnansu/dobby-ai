@@ -1,0 +1,84 @@
+# Changelog
+
+All notable changes to Dobby AI (formerly Ask AI) will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.1.0] - 2026-03-11
+
+### Changed
+- Foreign language presets now prioritize native-language actions (Summarize, Explain simply) over translation, since the system prompt already responds in the user's language
+- Updated README to reflect v2.0 architecture and features
+
+## [2.0.0] - 2026-03-11
+
+### Added
+- **Inline AI responses** — frosted glass bubble UI with streaming markdown rendering, replacing the old "open in new tab" flow
+- **Cloudflare Worker proxy server** — HMAC-SHA256 signed requests, sliding window + burst rate limiting, OpenAI SSE relay
+- **Follow-up conversations** — ask follow-up questions within the same bubble with full conversation history
+- **Language-aware responses** — AI responds in the same language as the selected text
+- **Selected text preview** — shows captured text in both preset selector and response bubble
+- **Text highlight preservation** — selecting text no longer loses the browser highlight when the preset selector opens
+- **DOM-based code detection** — walks up from selection anchor to find `<pre>`/`<code>` tags for higher-confidence code detection
+- **Viewport overflow handling** — bubble repositions above selection when near the bottom of the viewport
+- **Options page** — settings UI for API key management with validation
+- **Conversation history module** (`history.js`) — manages multi-turn conversations
+- **API key validation module** (`api.js`) — validates OpenAI API keys via `GET /v1/models`
+- **Timing-safe HMAC comparison** — constant-time XOR comparison to prevent timing attacks on the proxy
+
+### Changed
+- Renamed from "Ask AI" to "Dobby AI"
+- Rewrote `background.js` as SSE streaming relay instead of tab opener
+- Rewrote `prompt.js` with system message architecture (instruction + text combined in user message)
+- Rewrote `trigger.js` with text preview, detection badge, and wider preset selector
+- Content detection (`detection.js`) now returns rich objects with `subType`, `confidence`, and metadata
+- `host_permissions` scoped to specific proxy worker domain instead of broad wildcard
+- SSE parser handles `\r\n` line endings
+
+### Removed
+- `popup.js` — replaced by inline `bubble.js`
+- Direct ChatGPT/Claude URL-opening flow — replaced by proxy-based streaming
+
+### Fixed
+- `detectContent` vs `detectContentType` function name mismatch that silently broke all content detection
+- Proxy crash from Cloudflare KV `expirationTtl` below 60-second minimum
+- CORS fallback no longer leaks extension ID
+- Body size enforcement reads actual body instead of trusting `Content-Length` header
+- Upstream OpenAI error details no longer leaked to client
+
+### Security
+- HMAC signs full message payload (was previously truncated to 100 chars)
+- Timing-safe signature comparison
+- Scoped `host_permissions` to proxy domain only
+
+## [1.1.0] - 2026-03-11
+
+### Added
+- Enhanced smart detection engine with sub-types (JavaScript, Python, Rust, Go, SQL, Java, C/C++, Ruby, PHP) and rich metadata (confidence scores, word/char counts)
+- Foreign language sub-type detection (Japanese, Chinese, Korean, Arabic, Russian, Hindi, Thai)
+- Frosted glass popup redesign with accessibility improvements
+- Privacy policy for Chrome Web Store listing
+
+### Changed
+- Increased text and URL limits
+- Hardened context menu fallback
+
+## [1.0.0] - 2026-03-11
+
+### Added
+- Initial release
+- Floating trigger button on text selection
+- Smart content detection (code, foreign language, error, email, data, math)
+- Preset prompts per content type
+- Custom instruction input
+- ChatGPT and Claude AI selector
+- Context menu fallback for CSP-blocked pages
+- Shadow DOM popup UI
+- Page context injection (title + URL)
+- CI/CD workflows (tests, coverage, security, release, PR preview, permission guard)
+
+[2.1.0]: https://github.com/zhongnansu/ask-ai-extension/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/zhongnansu/ask-ai-extension/compare/v1.1.0...v2.0.0
+[1.1.0]: https://github.com/zhongnansu/ask-ai-extension/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/zhongnansu/ask-ai-extension/releases/tag/v1.0.0
