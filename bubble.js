@@ -216,6 +216,50 @@ function getStyles(theme) {
       cursor: pointer;
       text-decoration: underline;
     }
+    .presets-section {
+      padding: 8px 10px;
+      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
+    }
+    .presets-section.collapsed { display: none; }
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 6px;
+    }
+    .preset-chip {
+      padding: 4px 10px;
+      cursor: pointer;
+      border-radius: 10px;
+      font-size: 12px;
+      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'};
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .preset-chip:hover { background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'}; }
+    .preset-input {
+      width: 100%;
+      border: 1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'};
+      background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)'};
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 12px;
+      outline: none;
+      box-sizing: border-box;
+      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      font-family: inherit;
+    }
+    .preset-input:focus { border-color: ${isDark ? '#a78bfa' : '#7c3aed'}; }
+    .preset-input::placeholder { color: ${isDark ? '#71717a' : '#a1a1aa'}; }
+    .detection-badge {
+      font-size: 10px;
+      color: ${isDark ? '#a78bfa' : '#7c3aed'};
+      font-weight: 500;
+      padding: 0 0 4px;
+    }
+    .response-section { display: none; }
+    .response-section.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
     .history-panel { padding: 4px 0; }
     .history-entry {
       padding: 8px 0;
@@ -236,16 +280,10 @@ function getStyles(theme) {
   `;
 }
 
-function showBubble(selectionRect, messages, selectedText, instruction) {
-  hideBubble();
-
-  const theme = detectTheme();
-  currentMessages = messages;
-  responseText = '';
-
+function createBubbleHost(selectionRect) {
   bubbleHost = document.createElement('div');
   bubbleHost.id = 'dobby-ai-bubble';
-  const bubbleHeight = 420; // max-height of .bubble
+  const bubbleHeight = 420;
   const gap = 8;
   const preferredTop = selectionRect.bottom + gap;
   const wouldOverflow = preferredTop + bubbleHeight > window.innerHeight;
@@ -258,54 +296,45 @@ function showBubble(selectionRect, messages, selectedText, instruction) {
     left: `${Math.max(8, (selectionRect.left + selectionRect.right) / 2 - 190)}px`,
     top: `${top}px`,
   });
+  bubbleHost._escHandler = (e) => { if (e.key === 'Escape') hideBubble(); };
+  document.addEventListener('keydown', bubbleHost._escHandler);
+  return bubbleHost;
+}
 
-  const shadow = bubbleHost.attachShadow({ mode: 'open' });
-
-  const style = document.createElement('style');
-  style.textContent = getStyles(theme);
-  shadow.appendChild(style);
-
-  // Build preview of selected text (truncate for display)
-  const previewText = selectedText
-    ? (selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText)
-    : '';
-  const previewLabel = instruction || 'Selected text';
-
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.innerHTML = `
+function buildBubbleHTML(previewText, previewLabel, showPresets) {
+  return `
     <div class="bubble-header">
       <span class="bubble-logo">\u2726 Dobby AI</span>
-      <span class="bubble-status">thinking...</span>
+      <span class="bubble-status"></span>
       <button class="close-btn" title="Close">\u2715</button>
     </div>
     ${previewText ? `<div class="selected-text-preview">
       <div class="label">${escapeHtml(previewLabel)}</div>
       <div class="text">${escapeHtml(previewText)}</div>
     </div>` : ''}
-    <div class="bubble-body">
-      <div class="response-text"></div>
-      <span class="cursor blink"></span>
-    </div>
-    <div class="bubble-footer">
-      <input class="follow-up-input" placeholder="Ask a follow-up..." disabled />
-      <button class="action-btn copy-btn" title="Copy">\ud83d\udccb</button>
-      <button class="action-btn history-btn" title="History">\ud83d\udd50</button>
+    ${showPresets ? '<div class="presets-section"></div>' : ''}
+    <div class="response-section">
+      <div class="bubble-body">
+        <div class="response-text"></div>
+        <span class="cursor blink"></span>
+      </div>
+      <div class="bubble-footer">
+        <input class="follow-up-input" placeholder="Ask a follow-up..." disabled />
+        <button class="action-btn copy-btn" title="Copy">\ud83d\udccb</button>
+        <button class="action-btn history-btn" title="History">\ud83d\udd50</button>
+      </div>
     </div>
   `;
-  shadow.appendChild(bubble);
+}
 
-  // Wire events
+function wireCommonEvents(shadow) {
   shadow.querySelector('.close-btn').addEventListener('click', hideBubble);
-
   shadow.querySelector('.copy-btn').addEventListener('click', () => {
     navigator.clipboard.writeText(responseText).catch(() => {});
   });
-
   shadow.querySelector('.history-btn').addEventListener('click', () => {
     showHistoryPanel(shadow);
   });
-
   shadow.querySelector('.follow-up-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.value.trim()) {
       const question = e.target.value.trim();
@@ -313,14 +342,138 @@ function showBubble(selectionRect, messages, selectedText, instruction) {
       handleFollowUp(shadow, question);
     }
   });
+}
 
-  // Escape key to close bubble
-  bubbleHost._escHandler = (e) => { if (e.key === 'Escape') hideBubble(); };
-  document.addEventListener('keydown', bubbleHost._escHandler);
+function activateResponseSection(shadow, messages) {
+  const presetsSection = shadow.querySelector('.presets-section');
+  if (presetsSection) presetsSection.classList.add('collapsed');
+  const responseSection = shadow.querySelector('.response-section');
+  responseSection.classList.add('active');
+  shadow.querySelector('.bubble-status').textContent = 'thinking...';
+  startStreaming(shadow, messages);
+}
 
+// Show bubble with preset selection first, then expand to show response
+function showBubbleWithPresets(selectionRect, selectedText, anchorNode) {
+  hideBubble();
+
+  const theme = detectTheme();
+  responseText = '';
+
+  createBubbleHost(selectionRect);
+  const shadow = bubbleHost.attachShadow({ mode: 'open' });
+
+  const style = document.createElement('style');
+  style.textContent = getStyles(theme);
+  shadow.appendChild(style);
+
+  const previewText = selectedText
+    ? (selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText)
+    : '';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = buildBubbleHTML(previewText, 'Selected text', true);
+  shadow.appendChild(bubble);
+
+  // Detect content type and populate presets
+  const detected = typeof detectContentType === 'function'
+    ? detectContentType(selectedText, anchorNode)
+    : (typeof detectContent === 'function'
+      ? detectContent(selectedText)
+      : { type: 'default', subType: null, confidence: 'medium' });
+
+  const presets = typeof getSuggestedPresetsForType === 'function'
+    ? getSuggestedPresetsForType(detected.type, detected.subType)
+    : [];
+
+  const presetsSection = shadow.querySelector('.presets-section');
+
+  // Detection badge
+  if (detected.type !== 'default') {
+    const badge = document.createElement('div');
+    badge.className = 'detection-badge';
+    badge.textContent = `${detected.subType || detected.type} detected`;
+    presetsSection.appendChild(badge);
+  }
+
+  // Preset chips
+  const chipsRow = document.createElement('div');
+  chipsRow.className = 'preset-chips';
+  presets.slice(0, 4).forEach((preset) => {
+    const chip = document.createElement('div');
+    chip.className = 'preset-chip';
+    chip.textContent = preset.label;
+    chip.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      launchFromPreset(shadow, selectedText, preset.instruction);
+    });
+    chipsRow.appendChild(chip);
+  });
+  presetsSection.appendChild(chipsRow);
+
+  // Custom input
+  const customInput = document.createElement('input');
+  customInput.className = 'preset-input';
+  customInput.placeholder = 'Or type a custom prompt...';
+  customInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && customInput.value.trim()) {
+      launchFromPreset(shadow, selectedText, customInput.value.trim());
+    }
+    if (e.key === 'Escape') hideBubble();
+  });
+  presetsSection.appendChild(customInput);
+
+  wireCommonEvents(shadow);
+  document.body.appendChild(bubbleHost);
+}
+
+function launchFromPreset(shadow, selectedText, instruction) {
+  const messages = typeof buildChatMessages === 'function'
+    ? buildChatMessages(selectedText, instruction, true)
+    : [{ role: 'user', content: `${instruction}:\n\n${selectedText}` }];
+  currentMessages = messages;
+
+  // Update preview label to show chosen instruction
+  const label = shadow.querySelector('.selected-text-preview .label');
+  if (label) label.textContent = instruction;
+
+  activateResponseSection(shadow, messages);
+}
+
+// Direct bubble (used by context menu — no preset selection needed)
+function showBubble(selectionRect, messages, selectedText, instruction) {
+  hideBubble();
+
+  const theme = detectTheme();
+  currentMessages = messages;
+  responseText = '';
+
+  createBubbleHost(selectionRect);
+  const shadow = bubbleHost.attachShadow({ mode: 'open' });
+
+  const style = document.createElement('style');
+  style.textContent = getStyles(theme);
+  shadow.appendChild(style);
+
+  const previewText = selectedText
+    ? (selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText)
+    : '';
+  const previewLabel = instruction || 'Selected text';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = buildBubbleHTML(previewText, previewLabel, false);
+  shadow.appendChild(bubble);
+
+  // Show response section immediately for direct calls
+  shadow.querySelector('.response-section').classList.add('active');
+  shadow.querySelector('.bubble-status').textContent = 'thinking...';
+
+  wireCommonEvents(shadow);
   document.body.appendChild(bubbleHost);
 
-  // Start streaming
   startStreaming(shadow, messages);
 }
 
@@ -520,7 +673,7 @@ function _getBubbleContainer() {
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    showBubble, hideBubble, appendToken, setBubbleStatus,
+    showBubble, showBubbleWithPresets, hideBubble, appendToken, setBubbleStatus,
     renderMarkdown, detectTheme, _getBubbleContainer,
   };
 }

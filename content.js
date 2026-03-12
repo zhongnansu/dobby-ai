@@ -23,8 +23,6 @@ setTimeout(() => {
     if (bubble && !bubble.contains(e.target)) {
       const trigger = document.getElementById('dobby-ai-trigger');
       if (trigger && trigger.contains(e.target)) return;
-      const presets = document.getElementById('dobby-ai-presets');
-      if (presets && presets.contains(e.target)) return;
       hideBubble();
     }
   });
