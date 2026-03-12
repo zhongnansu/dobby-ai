@@ -1,19 +1,31 @@
-// Glue script — wires context menu messages to popup
+// content.js — Glue script: wires context menu messages to bubble
 // All modules loaded via manifest.json content_scripts share this scope
 
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'SHOW_POPUP') {
-    showPopup(msg.text, null);
+  if (msg.type === 'SHOW_BUBBLE') {
+    // When triggered from context menu, use approximate center-screen position
+    const rect = {
+      bottom: window.innerHeight / 3,
+      left: window.innerWidth / 4,
+      right: window.innerWidth * 3 / 4,
+    };
+    // Default instruction when no preset selected (context menu path)
+    const instruction = 'Explain the following';
+    const messages = buildChatMessages(msg.text, instruction, true);
+    showBubble(rect, messages, msg.text, instruction);
   }
 });
 
-// Dismiss popup on click outside
+// Dismiss bubble on click outside
 setTimeout(() => {
   document.addEventListener('mousedown', (e) => {
-    if (popupContainer && !popupContainer.contains(e.target)) {
-      const trigger = document.getElementById('ask-ai-trigger');
+    const bubble = typeof _getBubbleContainer === 'function' ? _getBubbleContainer() : null;
+    if (bubble && !bubble.contains(e.target)) {
+      const trigger = document.getElementById('dobby-ai-trigger');
       if (trigger && trigger.contains(e.target)) return;
-      hidePopup();
+      const presets = document.getElementById('dobby-ai-presets');
+      if (presets && presets.contains(e.target)) return;
+      hideBubble();
     }
   });
 }, 100);

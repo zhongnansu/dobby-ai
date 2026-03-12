@@ -141,6 +141,21 @@ describe('getSuggestedPresetsForType', () => {
     const result = getSuggestedPresetsForType('error', 'something');
     expect(result).toEqual(PRESETS.error.suggested);
   });
+
+  it('falls back to default presets for unknown content type', () => {
+    const result = getSuggestedPresetsForType('nonexistent', null);
+    expect(result).toEqual(PRESETS.default.suggested);
+  });
+
+  it('falls back to default presets for "general" type', () => {
+    const result = getSuggestedPresetsForType('general', null);
+    expect(result).toEqual(PRESETS.default.suggested);
+  });
+
+  it('returns default presets for undefined content type', () => {
+    const result = getSuggestedPresetsForType(undefined, null);
+    expect(result).toEqual(PRESETS.default.suggested);
+  });
 });
 
 describe('getAllPresetsForType', () => {

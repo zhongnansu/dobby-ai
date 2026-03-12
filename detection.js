@@ -343,9 +343,19 @@ function detectNaturalLanguage(text) {
   return best;
 }
 
+/**
+ * Backwards-compatible wrapper — calls detectContentType with no anchorNode.
+ * @param {string} text - The selected text
+ * @returns {{ type: string, subType: string|null, confidence: number, wordCount: number, charCount: number }}
+ */
+function detectContent(text) {
+  return detectContentType(text, null);
+}
+
 // Export for testing (no-op in browser)
 if (typeof module !== 'undefined') module.exports = {
   detectContentType,
+  detectContent,
   detectCodeLanguage,
   detectCodeHeuristics,
   detectError,

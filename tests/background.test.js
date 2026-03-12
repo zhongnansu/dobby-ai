@@ -1,20 +1,18 @@
+// tests/background.test.js
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock Chrome APIs before importing
 const mockCreate = vi.fn();
-const mockStorageGet = vi.fn();
 const mockSendMessage = vi.fn();
-const mockTabsCreate = vi.fn();
-const mockTabsUpdate = vi.fn();
-const mockWindowsCreate = vi.fn();
-const mockWindowsGet = vi.fn();
-const mockWindowsGetCurrent = vi.fn();
-const mockWindowsUpdate = vi.fn();
+const mockStorageGet = vi.fn();
+const mockStorageSet = vi.fn();
+const connectListeners = [];
+const messageListeners = [];
 
 global.chrome = {
   runtime: {
     onInstalled: { addListener: vi.fn() },
-    onMessage: { addListener: vi.fn() },
+    onMessage: { addListener: vi.fn((fn) => messageListeners.push(fn)) },
+    onConnect: { addListener: vi.fn((fn) => connectListeners.push(fn)) },
     lastError: null,
   },
   contextMenus: {
@@ -23,46 +21,38 @@ global.chrome = {
   },
   tabs: {
     sendMessage: mockSendMessage,
-    create: mockTabsCreate,
-    update: mockTabsUpdate,
   },
   storage: {
-    local: { get: mockStorageGet },
+    local: {
+      get: mockStorageGet,
+      set: mockStorageSet,
+    },
   },
-  windows: {
-    create: mockWindowsCreate,
-    get: mockWindowsGet,
-    getCurrent: mockWindowsGetCurrent,
-    update: mockWindowsUpdate,
-    onRemoved: { addListener: vi.fn() },
+  notifications: {
+    create: vi.fn(),
   },
 };
 
-// Import after mocks are set up
-const mod = await import('../background.js');
-const resetPopupWindowId = mod._resetPopupWindowIdForTesting;
+global.fetch = vi.fn();
+global.AbortController = AbortController;
 
-// Capture handlers immediately after import, before any clearAllMocks
+const mod = await import('../background.js');
+const { parseSSEStream, generateSignature } = mod;
+
 const clickHandler = chrome.contextMenus.onClicked.addListener.mock.calls[0][0];
-const messageHandler = chrome.runtime.onMessage.addListener.mock.calls[0][0];
-const windowRemovedHandler = chrome.windows.onRemoved.addListener.mock.calls[0][0];
 
 describe('context menu registration', () => {
   it('registers onInstalled listener', () => {
     expect(chrome.runtime.onInstalled.addListener).toHaveBeenCalledOnce();
   });
 
-  it('registers windows.onRemoved listener', () => {
-    expect(chrome.windows.onRemoved.addListener).toHaveBeenCalledOnce();
-  });
-
-  it('creates context menu with correct config on install', () => {
+  it('creates context menu with Dobby AI branding on install', () => {
     const installCallback = chrome.runtime.onInstalled.addListener.mock.calls[0][0];
     installCallback();
     expect(mockCreate).toHaveBeenCalledWith({
-      id: 'ask-ai',
-      title: 'Ask AI',
-      contexts: ['selection']
+      id: 'dobby-ai',
+      title: 'Dobby AI',
+      contexts: ['selection'],
     });
   });
 });
@@ -71,495 +61,300 @@ describe('context menu click handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     chrome.runtime.lastError = null;
-    resetPopupWindowId();
   });
 
-  it('sends SHOW_POPUP message to content script', () => {
+  it('sends SHOW_BUBBLE message to content script', () => {
     mockSendMessage.mockResolvedValue(undefined);
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'hello world' },
-      { id: 1 }
-    );
+    clickHandler({ menuItemId: 'dobby-ai', selectionText: 'hello' }, { id: 1 });
     expect(mockSendMessage).toHaveBeenCalledWith(1, {
-      type: 'SHOW_POPUP',
-      text: 'hello world'
+      type: 'SHOW_BUBBLE',
+      text: 'hello',
     });
   });
 
-  it('falls back to popup window when content script unavailable', async () => {
-    mockSendMessage.mockRejectedValue(new Error('no content script'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'chatgpt', pageContext: true, openMode: 'popup' });
-    });
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 100, top: 50, width: 1000 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 42 });
-    });
-
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'test text' },
-      { id: 1, title: 'Test Page', url: 'https://example.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockWindowsCreate).toHaveBeenCalled();
-    });
-
-    const opts = mockWindowsCreate.mock.calls[0][0];
-    expect(opts.type).toBe('popup');
-    expect(opts.width).toBe(420);
-    expect(opts.height).toBe(650);
-    expect(opts.url).toContain('chatgpt.com');
-    expect(opts.url).toContain(encodeURIComponent('test text'));
-  });
-
-  it('falls back to tab when openMode is tab', async () => {
-    mockSendMessage.mockRejectedValue(new Error('no content script'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'chatgpt', pageContext: false, openMode: 'tab' });
-    });
-
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'test text' },
-      { id: 1, title: 'Test Page', url: 'https://example.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockTabsCreate).toHaveBeenCalled();
-    });
-
-    const url = mockTabsCreate.mock.calls[0][0].url;
-    expect(url).toContain('chatgpt.com');
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
-  });
-
-  it('uses claude URL when lastAI is claude', async () => {
-    mockSendMessage.mockRejectedValue(new Error('no content script'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'claude', pageContext: false, openMode: 'tab' });
-    });
-
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'test' },
-      { id: 1, title: 'Page', url: 'https://x.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockTabsCreate).toHaveBeenCalled();
-    });
-
-    const url = mockTabsCreate.mock.calls[0][0].url;
-    expect(url).toContain('claude.ai');
-  });
-
-  it('ignores non-ask-ai menu items', () => {
-    clickHandler(
-      { menuItemId: 'other-item', selectionText: 'text' },
-      { id: 1 }
-    );
+  it('ignores non-dobby-ai menu items', () => {
+    clickHandler({ menuItemId: 'other', selectionText: 'text' }, { id: 1 });
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('ignores empty selectionText', () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: '' },
-      { id: 1 }
-    );
+    clickHandler({ menuItemId: 'dobby-ai', selectionText: '' }, { id: 1 });
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('ignores whitespace-only selectionText', () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: '   ' },
-      { id: 1 }
-    );
+    clickHandler({ menuItemId: 'dobby-ai', selectionText: '   ' }, { id: 1 });
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
+});
 
-  it('handles missing selectionText gracefully', () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    clickHandler(
-      { menuItemId: 'ask-ai' },
-      { id: 1 }
-    );
-    expect(mockSendMessage).not.toHaveBeenCalled();
+describe('parseSSEStream', () => {
+  function makeReader(chunks) {
+    let i = 0;
+    const encoder = new TextEncoder();
+    return {
+      read: () => {
+        if (i >= chunks.length) return Promise.resolve({ done: true });
+        return Promise.resolve({ done: false, value: encoder.encode(chunks[i++]) });
+      },
+    };
+  }
+
+  it('extracts tokens from SSE data lines', async () => {
+    const reader = makeReader([
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]);
+
+    const tokens = [];
+    for await (const token of parseSSEStream(reader)) {
+      tokens.push(token);
+    }
+    expect(tokens).toEqual(['Hello', ' world']);
   });
 
-  it('truncates long text in fallback path at 6000 chars', async () => {
-    mockSendMessage.mockRejectedValue(new Error('no content script'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'chatgpt', pageContext: false, openMode: 'tab' });
-    });
+  it('handles chunks split across SSE boundaries', async () => {
+    const reader = makeReader([
+      'data: {"choices":[{"delta":{"conte',
+      'nt":"Hi"}}]}\n\ndata: [DONE]\n\n',
+    ]);
 
-    const longText = 'x'.repeat(8000);
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: longText },
-      { id: 1, title: 'Page', url: 'https://example.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockTabsCreate).toHaveBeenCalled();
-    });
-
-    const url = mockTabsCreate.mock.calls[0][0].url;
-    expect(url).toContain(encodeURIComponent('...[truncated]'));
+    const tokens = [];
+    for await (const token of parseSSEStream(reader)) {
+      tokens.push(token);
+    }
+    expect(tokens).toEqual(['Hi']);
   });
 
-  it('uses stored AI preference in fallback path', async () => {
-    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'claude', pageContext: true, openMode: 'tab' });
-    });
+  it('skips lines without content delta', async () => {
+    const reader = makeReader([
+      'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]);
 
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'some text' },
-      { id: 1, title: 'My Page', url: 'https://secure.bank.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockTabsCreate).toHaveBeenCalled();
-    });
-
-    const url = mockTabsCreate.mock.calls[0][0].url;
-    expect(url).toContain('claude.ai');
-    expect(url).toContain(encodeURIComponent('My Page'));
+    const tokens = [];
+    for await (const token of parseSSEStream(reader)) {
+      tokens.push(token);
+    }
+    expect(tokens).toEqual(['ok']);
   });
 
-  it('includes page context in fallback when pageContext is true', async () => {
-    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'chatgpt', pageContext: true, openMode: 'tab' });
-    });
+  it('skips malformed JSON', async () => {
+    const reader = makeReader([
+      'data: {bad json}\n\n',
+      'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]);
 
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'hello' },
-      { id: 1, title: 'Test Page', url: 'https://example.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockTabsCreate).toHaveBeenCalled();
-    });
-
-    const url = mockTabsCreate.mock.calls[0][0].url;
-    expect(url).toContain(encodeURIComponent('From:'));
-    expect(url).toContain(encodeURIComponent('Test Page'));
-  });
-
-  it('excludes page context in fallback when pageContext is false', async () => {
-    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'chatgpt', pageContext: false, openMode: 'tab' });
-    });
-
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'hello' },
-      { id: 1, title: 'Test Page', url: 'https://example.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockTabsCreate).toHaveBeenCalled();
-    });
-
-    const url = mockTabsCreate.mock.calls[0][0].url;
-    expect(url).not.toContain(encodeURIComponent('From:'));
-  });
-
-  it('opens base URL for very long prompts exceeding 12000 char URL limit', async () => {
-    mockSendMessage.mockRejectedValue(new Error('CSP blocked'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'chatgpt', pageContext: false, openMode: 'tab' });
-    });
-
-    const text = 'a'.repeat(6000);
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: text },
-      { id: 1, title: 'Page', url: 'https://example.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockTabsCreate).toHaveBeenCalled();
-    });
-
-    const createdUrl = mockTabsCreate.mock.calls[0][0].url;
-    expect(createdUrl.startsWith('https://chatgpt.com/')).toBe(true);
-  });
-
-  it('defaults openMode to popup when not stored', async () => {
-    mockSendMessage.mockRejectedValue(new Error('no content script'));
-    mockStorageGet.mockImplementation((keys, cb) => {
-      cb({ lastAI: 'chatgpt', pageContext: false });
-    });
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 800 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 99 });
-    });
-
-    clickHandler(
-      { menuItemId: 'ask-ai', selectionText: 'test' },
-      { id: 1, title: 'P', url: 'https://x.com' }
-    );
-
-    await vi.waitFor(() => {
-      expect(mockWindowsCreate).toHaveBeenCalled();
-    });
-
-    expect(mockTabsCreate).not.toHaveBeenCalled();
+    const tokens = [];
+    for await (const token of parseSSEStream(reader)) {
+      tokens.push(token);
+    }
+    expect(tokens).toEqual(['ok']);
   });
 });
 
-describe('message handler', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    chrome.runtime.lastError = null;
-    resetPopupWindowId();
+describe('generateSignature', () => {
+  it('returns a 64-char hex string', async () => {
+    const sig = await generateSignature([{ role: 'user', content: 'hi' }], 123, 'secret');
+    expect(sig).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('opens popup window for OPEN_AI_TAB with default openMode', () => {
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 1000 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 10 });
-    });
-
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=test' });
-
-    expect(mockWindowsGetCurrent).toHaveBeenCalled();
-    expect(mockWindowsCreate).toHaveBeenCalled();
-    const opts = mockWindowsCreate.mock.calls[0][0];
-    expect(opts.url).toBe('https://chatgpt.com/?q=test');
-    expect(opts.type).toBe('popup');
-    expect(opts.width).toBe(420);
-    expect(opts.height).toBe(650);
+  it('is deterministic', async () => {
+    const a = await generateSignature([{ role: 'user', content: 'hi' }], 123, 'secret');
+    const b = await generateSignature([{ role: 'user', content: 'hi' }], 123, 'secret');
+    expect(a).toBe(b);
   });
 
-  it('opens tab for OPEN_AI_TAB when openMode is tab', () => {
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=test', openMode: 'tab' });
-    expect(mockTabsCreate).toHaveBeenCalledWith({ url: 'https://chatgpt.com/?q=test' });
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
-  });
-
-  it('opens popup window for COPY_AND_OPEN with default openMode', () => {
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 800 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 20 });
-    });
-
-    messageHandler({ type: 'COPY_AND_OPEN', url: 'https://claude.ai/new' });
-
-    expect(mockWindowsCreate).toHaveBeenCalled();
-    expect(mockWindowsCreate.mock.calls[0][0].url).toBe('https://claude.ai/new');
-  });
-
-  it('opens tab for COPY_AND_OPEN when openMode is tab', () => {
-    messageHandler({ type: 'COPY_AND_OPEN', url: 'https://claude.ai/new', openMode: 'tab' });
-    expect(mockTabsCreate).toHaveBeenCalledWith({ url: 'https://claude.ai/new' });
-  });
-
-  it('ignores unknown message types', () => {
-    messageHandler({ type: 'UNKNOWN' });
-    expect(mockTabsCreate).not.toHaveBeenCalled();
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
-  });
-
-  it('rejects OPEN_AI_TAB with non-allowed URL', () => {
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://evil.com/phishing' });
-    expect(mockTabsCreate).not.toHaveBeenCalled();
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
-  });
-
-  it('rejects COPY_AND_OPEN with non-allowed URL', () => {
-    messageHandler({ type: 'COPY_AND_OPEN', url: 'https://malicious.site/' });
-    expect(mockTabsCreate).not.toHaveBeenCalled();
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
-  });
-
-  it('rejects OPEN_AI_TAB with missing URL', () => {
-    messageHandler({ type: 'OPEN_AI_TAB' });
-    expect(mockTabsCreate).not.toHaveBeenCalled();
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
+  it('changes with different timestamps', async () => {
+    const a = await generateSignature([{ role: 'user', content: 'hi' }], 100, 'secret');
+    const b = await generateSignature([{ role: 'user', content: 'hi' }], 200, 'secret');
+    expect(a).not.toBe(b);
   });
 });
 
-describe('popup window creation', () => {
+describe('chat-stream port handler', () => {
+  let portMessageHandler;
+
+  function createMockPort() {
+    const port = {
+      name: 'chat-stream',
+      postMessage: vi.fn(),
+      onMessage: { addListener: vi.fn((fn) => { portMessageHandler = fn; }) },
+      onDisconnect: { addListener: vi.fn() },
+    };
+    return port;
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     chrome.runtime.lastError = null;
-    resetPopupWindowId();
+    portMessageHandler = null;
   });
 
-  it('creates popup with correct dimensions', () => {
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 100, top: 50, width: 1200 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 1 });
-    });
-
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=hi', openMode: 'popup' });
-
-    const createOpts = mockWindowsCreate.mock.calls[0][0];
-    expect(createOpts.width).toBe(420);
-    expect(createOpts.height).toBe(650);
-    expect(createOpts.type).toBe('popup');
+  it('registers onConnect listener', () => {
+    expect(connectListeners.length).toBeGreaterThan(0);
   });
 
-  it('positions popup on right side of current window', () => {
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 100, top: 50, width: 1200 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 1 });
-    });
-
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=hi', openMode: 'popup' });
-
-    const createOpts = mockWindowsCreate.mock.calls[0][0];
-    expect(createOpts.left).toBe(100 + 1200 - 440);
-    expect(createOpts.top).toBe(50 + 80);
+  it('ignores ports with wrong name', () => {
+    const connectHandler = connectListeners[0];
+    const port = { name: 'other', onMessage: { addListener: vi.fn() }, onDisconnect: { addListener: vi.fn() } };
+    connectHandler(port);
+    expect(port.onMessage.addListener).not.toHaveBeenCalled();
   });
 
-  it('falls back to chrome.tabs.create when windows.create fails', () => {
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 800 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      chrome.runtime.lastError = { message: 'popup creation failed' };
-      cb(null);
-      chrome.runtime.lastError = null;
-    });
-
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=test', openMode: 'popup' });
-
-    expect(mockTabsCreate).toHaveBeenCalledWith({ url: 'https://chatgpt.com/?q=test' });
+  it('listens for messages on chat-stream ports', () => {
+    const connectHandler = connectListeners[0];
+    const port = createMockPort();
+    connectHandler(port);
+    expect(port.onMessage.addListener).toHaveBeenCalled();
   });
 });
 
-describe('popup window reuse', () => {
+describe('API key validation message handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    chrome.runtime.lastError = null;
-    resetPopupWindowId();
   });
 
-  it('reuses existing popup window on second send', () => {
-    // First send — creates window
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 1000 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 42 });
-    });
+  it('saves valid API key and responds with valid: true', async () => {
+    const handler = messageListeners[0];
+    const sendResponse = vi.fn();
+    fetch.mockResolvedValue({ ok: true });
 
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=first', openMode: 'popup' });
-    expect(mockWindowsCreate).toHaveBeenCalledTimes(1);
+    const result = handler({ type: 'VALIDATE_API_KEY', apiKey: 'sk-test' }, {}, sendResponse);
+    expect(result).toBe(true); // async sendResponse
 
-    vi.clearAllMocks();
-
-    // Second send — should reuse window
-    mockWindowsGet.mockImplementation((id, opts, cb) => {
-      cb({ id: 42, tabs: [{ id: 100 }] });
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ valid: true });
+      expect(mockStorageSet).toHaveBeenCalledWith({ userApiKey: 'sk-test' });
     });
 
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=second', openMode: 'popup' });
-
-    expect(mockTabsUpdate).toHaveBeenCalledWith(100, { url: 'https://chatgpt.com/?q=second' });
-    expect(mockWindowsUpdate).toHaveBeenCalledWith(42, { focused: true });
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
+    // Should use /v1/models (GET, free) not /v1/chat/completions
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('/v1/models');
+    expect(fetch.mock.calls[0][1].method).toBeUndefined(); // GET (default)
   });
 
-  it('creates new window if tracked window was closed via onRemoved', () => {
-    // First send — creates window
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 1000 });
+  it('responds with valid: false for invalid key', async () => {
+    const handler = messageListeners[0];
+    const sendResponse = vi.fn();
+    fetch.mockResolvedValue({ ok: false });
+
+    handler({ type: 'VALIDATE_API_KEY', apiKey: 'bad-key' }, {}, sendResponse);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ valid: false, error: 'Invalid API key' });
     });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 42 });
-    });
-
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=first', openMode: 'popup' });
-
-    vi.clearAllMocks();
-
-    // Simulate window closed
-    windowRemovedHandler(42);
-
-    // Next send — should create new window
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 1000 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 55 });
-    });
-
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=third', openMode: 'popup' });
-
-    expect(mockWindowsCreate).toHaveBeenCalled();
-    expect(mockWindowsGet).not.toHaveBeenCalled();
   });
 
-  it('creates new window when windows.get returns error for tracked window', () => {
-    // First send — creates window
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 1000 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 42 });
-    });
+  it('responds with error on network failure', async () => {
+    const handler = messageListeners[0];
+    const sendResponse = vi.fn();
+    fetch.mockRejectedValue(new Error('network'));
 
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=first', openMode: 'popup' });
+    handler({ type: 'VALIDATE_API_KEY', apiKey: 'sk-test' }, {}, sendResponse);
 
-    vi.clearAllMocks();
-
-    // Second send — windows.get fails
-    mockWindowsGet.mockImplementation((id, opts, cb) => {
-      chrome.runtime.lastError = { message: 'window not found' };
-      cb(null);
-      chrome.runtime.lastError = null;
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ valid: false, error: 'Network error' });
     });
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 1000 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 77 });
-    });
-
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=second', openMode: 'popup' });
-
-    expect(mockWindowsCreate).toHaveBeenCalled();
   });
 
-  it('ignores removal of untracked windows', () => {
-    // Create a popup window first
-    mockWindowsGetCurrent.mockImplementation((opts, cb) => {
-      cb({ left: 0, top: 0, width: 1000 });
-    });
-    mockWindowsCreate.mockImplementation((opts, cb) => {
-      cb({ id: 42 });
-    });
+  it('ignores non-VALIDATE_API_KEY messages', () => {
+    const handler = messageListeners[0];
+    const result = handler({ type: 'OTHER' }, {}, vi.fn());
+    expect(result).toBeUndefined();
+  });
+});
 
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=test', openMode: 'popup' });
+describe('chat-stream integration', () => {
+  function createStreamPort() {
+    let messageHandler;
+    const port = {
+      name: 'chat-stream',
+      postMessage: vi.fn(),
+      onMessage: { addListener: vi.fn((fn) => { messageHandler = fn; }) },
+      onDisconnect: { addListener: vi.fn() },
+    };
+    return { port, getHandler: () => messageHandler };
+  }
 
+  function makeSSEResponse(chunks) {
+    const encoder = new TextEncoder();
+    let i = 0;
+    const body = { getReader: () => ({
+      read: () => {
+        if (i >= chunks.length) return Promise.resolve({ done: true });
+        return Promise.resolve({ done: false, value: encoder.encode(chunks[i++]) });
+      }
+    })};
+    return { ok: true, status: 200, body };
+  }
+
+  beforeEach(() => {
     vi.clearAllMocks();
+    mockStorageGet.mockImplementation((key) => Promise.resolve({}));
+  });
 
-    // Remove a different window
-    windowRemovedHandler(999);
+  it('streams tokens via proxy when no user API key', async () => {
+    const { port, getHandler } = createStreamPort();
+    const connectHandler = connectListeners[0];
+    connectHandler(port);
 
-    // Next send should still try to reuse window 42
-    mockWindowsGet.mockImplementation((id, opts, cb) => {
-      cb({ id: 42, tabs: [{ id: 100 }] });
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith({ type: 'token', text: 'Hi' });
+      expect(port.postMessage).toHaveBeenCalledWith({ type: 'done' });
     });
 
-    messageHandler({ type: 'OPEN_AI_TAB', url: 'https://chatgpt.com/?q=reuse', openMode: 'popup' });
-    expect(mockWindowsGet).toHaveBeenCalled();
-    expect(mockWindowsCreate).not.toHaveBeenCalled();
+    // Verify it called proxy URL (not OpenAI directly)
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('workers.dev');
+  });
+
+  it('calls OpenAI directly when user has API key', async () => {
+    const { port, getHandler } = createStreamPort();
+    const connectHandler = connectListeners[0];
+    connectHandler(port);
+
+    mockStorageGet.mockImplementation((key) => Promise.resolve({ userApiKey: 'sk-user' }));
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith({ type: 'done' });
+    });
+
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('openai.com');
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer sk-user');
+  });
+
+  it('forwards 429 rate limit as rate_limited message', async () => {
+    const { port, getHandler } = createStreamPort();
+    const connectHandler = connectListeners[0];
+    connectHandler(port);
+
+    fetch.mockResolvedValue({ ok: false, status: 429, json: () => Promise.resolve({ remaining: 0 }) });
+
+    const handler = getHandler();
+    await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'rate_limited', remaining: 0 }));
+    });
   });
 });
