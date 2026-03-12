@@ -1,59 +1,44 @@
-// Prompt construction and AI URL generation
-// Implemented by Engineer A
-
+// prompt.js — OpenAI chat message format
 const MAX_TEXT_LENGTH = 6000;
-const MAX_URL_LENGTH = 12000;
 
 /**
- * Build the final prompt string.
+ * Build OpenAI chat messages array from selected text and instruction.
  * @param {string} selectedText
- * @param {string} instruction - Preset or custom instruction (can be empty)
+ * @param {string} instruction - Preset or custom instruction (can be empty/null)
  * @param {boolean} includePageContext
- * @returns {string}
+ * @returns {Array<{role: string, content: string}>}
  */
-function buildPrompt(selectedText, instruction, includePageContext) {
+function buildChatMessages(selectedText, instruction, includePageContext) {
   let text = selectedText;
   if (text.length > MAX_TEXT_LENGTH) {
     text = text.substring(0, MAX_TEXT_LENGTH) + '...[truncated]';
   }
 
-  let prompt = '';
+  const messages = [];
+
   if (instruction) {
-    prompt = `${instruction}:\n\n${text}`;
-  } else {
-    prompt = text;
+    messages.push({ role: 'system', content: instruction });
   }
 
+  let userContent = text;
   if (includePageContext) {
     const title = typeof document !== 'undefined' ? document.title : '';
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    prompt += `\n\nFrom: "${title}" (${url})`;
+    userContent += `\n\nFrom: "${title}" (${url})`;
   }
 
-  return prompt;
+  messages.push({ role: 'user', content: userContent });
+  return messages;
 }
 
 /**
- * Generate the AI URL with the prompt.
- * @param {'chatgpt'|'claude'} ai
- * @param {string} prompt
- * @returns {{ url: string, fallback: boolean, prompt?: string }}
+ * Append a follow-up question to an existing conversation.
+ * @param {Array} existingMessages
+ * @param {string} newQuestion
+ * @returns {Array}
  */
-function getAIUrl(ai, prompt) {
-  const encoded = encodeURIComponent(prompt);
-  const baseUrls = {
-    chatgpt: 'https://chatgpt.com/',
-    claude: 'https://claude.ai/new'
-  };
-
-  const fullUrl = `${baseUrls[ai]}?q=${encoded}`;
-
-  if (fullUrl.length > MAX_URL_LENGTH) {
-    return { url: baseUrls[ai], fallback: true, prompt };
-  }
-
-  return { url: fullUrl, fallback: false };
+function buildFollowUp(existingMessages, newQuestion) {
+  return [...existingMessages, { role: 'user', content: newQuestion }];
 }
 
-// Export for testing (no-op in browser)
-if (typeof module !== 'undefined') module.exports = { buildPrompt, getAIUrl, MAX_TEXT_LENGTH, MAX_URL_LENGTH };
+if (typeof module !== 'undefined') module.exports = { buildChatMessages, buildFollowUp, MAX_TEXT_LENGTH };

@@ -1,131 +1,88 @@
-import { buildPrompt, getAIUrl, MAX_TEXT_LENGTH, MAX_URL_LENGTH } from '../prompt.js';
+// tests/prompt.test.js
+import { buildChatMessages, buildFollowUp, MAX_TEXT_LENGTH } from '../prompt.js';
 
-describe('MAX constants', () => {
-  it('MAX_TEXT_LENGTH is 6000', () => {
+describe('MAX_TEXT_LENGTH', () => {
+  it('is 6000', () => {
     expect(MAX_TEXT_LENGTH).toBe(6000);
-  });
-
-  it('MAX_URL_LENGTH is 12000', () => {
-    expect(MAX_URL_LENGTH).toBe(12000);
   });
 });
 
-describe('buildPrompt', () => {
-  it('prepends instruction when provided', () => {
-    const result = buildPrompt('hello world', 'Summarize the following', false);
-    expect(result).toBe('Summarize the following:\n\nhello world');
+describe('buildChatMessages', () => {
+  it('returns messages array with user message', () => {
+    const result = buildChatMessages('hello world', '', false);
+    expect(result).toEqual([{ role: 'user', content: 'hello world' }]);
   });
 
-  it('returns raw text when no instruction is provided', () => {
-    const result = buildPrompt('hello world', '', false);
-    expect(result).toBe('hello world');
+  it('adds system message when instruction is provided', () => {
+    const result = buildChatMessages('code here', 'Explain this code', false);
+    expect(result).toEqual([
+      { role: 'system', content: 'Explain this code' },
+      { role: 'user', content: 'code here' },
+    ]);
   });
 
-  it('returns raw text when instruction is null/undefined', () => {
-    const result = buildPrompt('hello world', null, false);
-    expect(result).toBe('hello world');
+  it('skips system message for empty instruction', () => {
+    const result = buildChatMessages('text', '', false);
+    expect(result.length).toBe(1);
+    expect(result[0].role).toBe('user');
+  });
+
+  it('skips system message for null instruction', () => {
+    const result = buildChatMessages('text', null, false);
+    expect(result.length).toBe(1);
   });
 
   it('truncates text longer than MAX_TEXT_LENGTH', () => {
     const longText = 'a'.repeat(MAX_TEXT_LENGTH + 500);
-    const result = buildPrompt(longText, '', false);
-    expect(result.length).toBe(MAX_TEXT_LENGTH + '...[truncated]'.length);
-    expect(result).toContain('...[truncated]');
-    expect(result.startsWith('a'.repeat(MAX_TEXT_LENGTH))).toBe(true);
+    const result = buildChatMessages(longText, '', false);
+    expect(result[0].content.length).toBe(MAX_TEXT_LENGTH + '...[truncated]'.length);
+    expect(result[0].content).toContain('...[truncated]');
   });
 
-  it('truncates text before applying instruction', () => {
-    const longText = 'x'.repeat(MAX_TEXT_LENGTH + 100);
-    const result = buildPrompt(longText, 'Explain', false);
-    expect(result).toContain('Explain:\n\n');
-    expect(result).toContain('...[truncated]');
+  it('does not truncate text at MAX_TEXT_LENGTH exactly', () => {
+    const text = 'a'.repeat(MAX_TEXT_LENGTH);
+    const result = buildChatMessages(text, '', false);
+    expect(result[0].content).toBe(text);
   });
 
-  it('does NOT truncate text at old 2000 limit', () => {
-    const text = 'a'.repeat(3000);
-    const result = buildPrompt(text, '', false);
-    expect(result).toBe(text);
-    expect(result).not.toContain('truncated');
+  it('appends page context when includePageContext is true', () => {
+    const result = buildChatMessages('hello', '', true);
+    expect(result[0].content).toContain('From:');
   });
 
-  it('does NOT append page context when includePageContext is false', () => {
-    const result = buildPrompt('hello', 'Explain', false);
-    expect(result).toBe('Explain:\n\nhello');
-    expect(result).not.toContain('From:');
+  it('does not append page context when false', () => {
+    const result = buildChatMessages('hello', '', false);
+    expect(result[0].content).not.toContain('From:');
   });
 
-  it('appends page context when includePageContext is true (no document/window in Node)', () => {
-    const result = buildPrompt('hello', 'Explain', true);
-    expect(result).toContain('From:');
-    expect(result).toBe('Explain:\n\nhello\n\nFrom: "" ()');
-  });
-
-  it('handles empty selectedText', () => {
-    const result = buildPrompt('', 'Summarize', false);
-    expect(result).toBe('Summarize:\n\n');
-  });
-
-  it('preserves whitespace and newlines in selected text', () => {
-    const text = '  line one\n  line two\n  line three';
-    const result = buildPrompt(text, '', false);
-    expect(result).toBe(text);
+  it('preserves whitespace and newlines', () => {
+    const text = '  line one\n  line two';
+    const result = buildChatMessages(text, '', false);
+    expect(result[0].content).toBe(text);
   });
 });
 
-describe('getAIUrl', () => {
-  it('returns a chatgpt URL with encoded prompt', () => {
-    const result = getAIUrl('chatgpt', 'hello world');
-    expect(result.url).toBe('https://chatgpt.com/?q=hello%20world');
-    expect(result.fallback).toBe(false);
+describe('buildFollowUp', () => {
+  it('appends user message to existing conversation', () => {
+    const existing = [
+      { role: 'system', content: 'Explain' },
+      { role: 'user', content: 'code here' },
+      { role: 'assistant', content: 'This code does...' },
+    ];
+    const result = buildFollowUp(existing, 'Can you simplify it?');
+    expect(result.length).toBe(4);
+    expect(result[3]).toEqual({ role: 'user', content: 'Can you simplify it?' });
   });
 
-  it('returns a claude URL with encoded prompt', () => {
-    const result = getAIUrl('claude', 'hello world');
-    expect(result.url).toBe('https://claude.ai/new?q=hello%20world');
-    expect(result.fallback).toBe(false);
+  it('does not mutate the original array', () => {
+    const existing = [{ role: 'user', content: 'hi' }];
+    const result = buildFollowUp(existing, 'follow up');
+    expect(existing.length).toBe(1);
+    expect(result.length).toBe(2);
   });
 
-  it('properly encodes special characters in the prompt', () => {
-    const result = getAIUrl('chatgpt', 'what is 1+1?');
-    expect(result.url).toContain('https://chatgpt.com/?q=');
-    expect(result.fallback).toBe(false);
-    expect(result.url).not.toContain(' ');
-  });
-
-  it('returns fallback when URL exceeds MAX_URL_LENGTH (12000)', () => {
-    const longPrompt = 'a'.repeat(MAX_URL_LENGTH);
-    const result = getAIUrl('chatgpt', longPrompt);
-    expect(result.fallback).toBe(true);
-    expect(result.url).toBe('https://chatgpt.com/');
-    expect(result.prompt).toBe(longPrompt);
-  });
-
-  it('returns fallback for claude when URL exceeds MAX_URL_LENGTH', () => {
-    const longPrompt = 'b'.repeat(MAX_URL_LENGTH);
-    const result = getAIUrl('claude', longPrompt);
-    expect(result.fallback).toBe(true);
-    expect(result.url).toBe('https://claude.ai/new');
-    expect(result.prompt).toBe(longPrompt);
-  });
-
-  it('does NOT return fallback when URL is just under the limit', () => {
-    const baseLen = 'https://chatgpt.com/?q='.length;
-    const promptLen = MAX_URL_LENGTH - baseLen;
-    const prompt = 'a'.repeat(promptLen);
-    const result = getAIUrl('chatgpt', prompt);
-    expect(result.fallback).toBe(false);
-    expect(result.url.length).toBe(MAX_URL_LENGTH);
-  });
-
-  it('does not include prompt property when fallback is false', () => {
-    const result = getAIUrl('chatgpt', 'test');
-    expect(result.prompt).toBeUndefined();
-  });
-
-  it('handles prompts that were within old 8000 limit without fallback', () => {
-    // A prompt that would have triggered fallback at 8000 but doesn't at 12000
-    const prompt = 'a'.repeat(3000);
-    const result = getAIUrl('chatgpt', prompt);
-    expect(result.fallback).toBe(false);
+  it('works with empty conversation', () => {
+    const result = buildFollowUp([], 'hello');
+    expect(result).toEqual([{ role: 'user', content: 'hello' }]);
   });
 });
