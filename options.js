@@ -51,6 +51,12 @@ saveBtn.addEventListener('click', async () => {
     return;
   }
 
+  if (key.startsWith('sk-ant-')) {
+    keyStatus.textContent = 'Anthropic (Claude) key support coming soon — please use an OpenAI key for now';
+    keyStatus.className = 'status error';
+    return;
+  }
+
   saveBtn.disabled = true;
   keyStatus.textContent = 'Validating...';
   keyStatus.className = 'status info';
@@ -76,5 +82,15 @@ apiKeyInput.addEventListener('keydown', (e) => {
 removeBtn.addEventListener('click', () => {
   chrome.storage.local.remove('userApiKey', () => {
     showNoKey();
+  });
+});
+
+// Provider tab switching
+document.querySelectorAll('.provider-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.provider-tab').forEach((t) => t.classList.remove('active'));
+    document.querySelectorAll('.provider-panel').forEach((p) => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`panel-${tab.dataset.provider}`).classList.add('active');
   });
 });

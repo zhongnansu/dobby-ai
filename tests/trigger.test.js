@@ -15,8 +15,9 @@ global.buildChatMessages = vi.fn((text, instruction) => [
   { role: 'user', content: text },
 ]);
 global.showBubble = vi.fn();
+global.showBubbleWithPresets = vi.fn();
 global.hideBubble = vi.fn();
-global.bubbleHost = null;
+global._getBubbleContainer = vi.fn(() => null);
 
 const {
   createTriggerButton,
@@ -77,14 +78,12 @@ describe('showTrigger', () => {
   it('clamps left position to prevent off-screen rendering', () => {
     showTrigger(1020, 100);
     const el = document.getElementById('dobby-ai-trigger');
-    // maxLeft = 1024 - 36 - 8 = 980 (jsdom defaults innerWidth=1024, offsetWidth fallback=36)
     expect(parseInt(el.style.left)).toBeLessThanOrEqual(980);
   });
 
   it('clamps top position to viewport bottom', () => {
     showTrigger(100, 800);
     const el = document.getElementById('dobby-ai-trigger');
-    // maxTop = 768 - 28 - 8 = 732 (jsdom defaults innerHeight=768, offsetHeight fallback=28)
     expect(parseInt(el.style.top)).toBeLessThanOrEqual(732);
   });
 });
@@ -102,7 +101,6 @@ describe('hideTrigger', () => {
   });
 });
 
-// Preserved from existing tests
 describe('event-driven behavior', () => {
   function mockSelection(text) {
     const range = { getBoundingClientRect: () => ({ top: 100, right: 200, bottom: 120, left: 100 }) };
@@ -171,42 +169,17 @@ describe('event-driven behavior', () => {
     const img = btn.querySelector('img');
     expect(img.src).toContain('data:image/svg+xml');
   });
-});
 
-// Errata item 9: preset selector tests
-describe('preset selector', () => {
-  function openPresetSelector() {
+  it('clicking trigger calls showBubbleWithPresets', () => {
     createTriggerButton();
-    window.getSelection = vi.fn(() => ({
-      toString: () => 'test text',
-      anchorNode: document.body,
-      rangeCount: 1,
-      getRangeAt: () => ({ getBoundingClientRect: () => ({ top: 100, right: 200, bottom: 120, left: 100 }) }),
-    }));
+    mockSelection('test text');
     showTrigger(200, 100);
     const btn = document.getElementById('dobby-ai-trigger');
     btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    return document.getElementById('dobby-ai-presets');
-  }
-
-  it('shows preset buttons from getSuggestedPresetsForType', () => {
-    const presets = openPresetSelector();
-    expect(presets).not.toBeNull();
-  });
-
-  it('uses dark theme colors when detectTheme returns dark', () => {
-    global.detectTheme = vi.fn(() => 'dark');
-    const presets = openPresetSelector();
-    expect(presets.style.background).toBe('rgba(30, 30, 40, 0.85)');
-    expect(presets.style.border).toContain('rgba(255, 255, 255, 0.12)');
-    global.detectTheme = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
-  });
-
-  it('uses light theme colors when detectTheme returns light', () => {
-    global.detectTheme = vi.fn(() => 'light');
-    const presets = openPresetSelector();
-    expect(presets.style.background).toBe('rgba(255, 255, 255, 0.85)');
-    expect(presets.style.border).toContain('rgba(0, 0, 0, 0.08)');
-    global.detectTheme = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
+    expect(showBubbleWithPresets).toHaveBeenCalledWith(
+      expect.objectContaining({ top: 100, bottom: 120 }),
+      'test text',
+      document.body
+    );
   });
 });

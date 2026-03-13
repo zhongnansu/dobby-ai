@@ -98,6 +98,47 @@
     }
     .usage-info strong { font-weight: 600; }
     .divider { height: 1px; background: #e4e4e7; margin: 16px 0; }
+    .steps { padding-left: 0; list-style: none; counter-reset: step; }
+    .steps li { counter-increment: step; position: relative; padding-left: 28px; margin-bottom: 10px; font-size: 13px; line-height: 1.5; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 0;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #7c3aed; color: white;
+      font-size: 11px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .steps a { color: #7c3aed; text-decoration: none; }
+    .steps a:hover { text-decoration: underline; }
+    .provider-tab {
+      display: inline-block; padding: 6px 14px; font-size: 13px; font-weight: 500;
+      border-radius: 8px 8px 0 0; cursor: pointer; border: 1px solid #e4e4e7; border-bottom: none;
+      background: #f4f4f5; color: #71717a; margin-right: 4px;
+    }
+    .provider-tab.active { background: white; color: #18181b; border-bottom: 1px solid white; margin-bottom: -1px; position: relative; z-index: 1; }
+    .provider-content { border: 1px solid #e4e4e7; border-radius: 0 8px 8px 8px; padding: 16px; background: white; }
+    .provider-panel { display: none; }
+    .provider-panel.active { display: block; }
+    .hint { font-size: 12px; color: #a1a1aa; margin-top: 4px; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #18181b; color: #e4e4e7; }
+      .card { background: #27272a; border-color: #3f3f46; }
+      .card p { color: #a1a1aa; }
+      .input-group input { background: #18181b; border-color: #3f3f46; color: #e4e4e7; }
+      .input-group input:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
+      .current-key { background: #3f3f46; }
+      .current-key .key-value { color: #a1a1aa; }
+      .btn-danger { background: #27272a; border-color: #7f1d1d; color: #f87171; }
+      .btn-danger:hover { background: #371717; }
+      .usage-info { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.2); color: #c4b5fd; }
+      .provider-tab { background: #3f3f46; border-color: #52525b; color: #a1a1aa; }
+      .provider-tab.active { background: #27272a; color: #e4e4e7; border-bottom-color: #27272a; }
+      .provider-content { background: #27272a; border-color: #3f3f46; }
+      .steps li::before { background: #a78bfa; }
+      .steps a { color: #a78bfa; }
+      .hint { color: #71717a; }
+      .header .version { color: #71717a; }
+    }
   </style>
 </head>
 <body>
@@ -112,22 +153,54 @@
 
     <div class="card">
       <h2>API Key</h2>
-      <p>Add your OpenAI API key for unlimited usage. Without a key, you get 30 free questions per day.</p>
+      <p>Add your own API key for unlimited usage. Without a key, you get 30 free questions per day via our proxy.</p>
 
       <div id="has-key" style="display:none">
         <div class="current-key">
           <span class="key-value" id="key-display"></span>
-          <button class="btn btn-danger" id="remove-btn">Remove</button>
+          <button class="btn btn-danger" id="remove-btn">Remove key</button>
         </div>
-        <div class="status success" id="key-status-active">Using your API key — unlimited access</div>
+        <div class="status success" id="key-status-active">Using your API key &mdash; unlimited access</div>
       </div>
 
       <div id="no-key">
         <div class="input-group">
-          <input type="password" id="api-key-input" placeholder="sk-proj-..." autocomplete="off" />
+          <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off" />
           <button class="btn btn-primary" id="save-btn">Save</button>
         </div>
+        <p class="hint">Your key is stored locally and never sent to our servers.</p>
         <div class="status" id="key-status"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>How to get an API key</h2>
+
+      <div style="margin-bottom: 12px">
+        <span class="provider-tab active" data-provider="openai">OpenAI</span>
+        <span class="provider-tab" data-provider="anthropic">Anthropic (Claude)</span>
+      </div>
+
+      <div class="provider-content">
+        <div class="provider-panel active" id="panel-openai">
+          <ol class="steps">
+            <li>Go to <a href="https://platform.openai.com/signup" target="_blank">platform.openai.com</a> and sign up or log in</li>
+            <li>Navigate to <a href="https://platform.openai.com/api-keys" target="_blank">API Keys</a> in your dashboard</li>
+            <li>Click <strong>"Create new secret key"</strong>, give it a name, and copy the key</li>
+            <li>Paste the key above and click Save &mdash; Dobby AI will validate it automatically</li>
+          </ol>
+          <p class="hint">OpenAI keys typically start with <code>sk-</code>. You'll need a payment method on your OpenAI account. Usage is billed per request (~$0.001/question with GPT-4o-mini).</p>
+        </div>
+
+        <div class="provider-panel" id="panel-anthropic">
+          <ol class="steps">
+            <li>Go to <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a> and sign up or log in</li>
+            <li>Navigate to <a href="https://console.anthropic.com/settings/keys" target="_blank">API Keys</a> in Settings</li>
+            <li>Click <strong>"Create Key"</strong>, name it, and copy the key</li>
+            <li>Claude API support is coming soon &mdash; for now, please use an OpenAI key above</li>
+          </ol>
+          <p class="hint">Anthropic keys start with <code>sk-ant-</code>. We're working on adding Claude as an alternative model provider.</p>
+        </div>
       </div>
     </div>
 
@@ -135,8 +208,12 @@
       <h2>How it works</h2>
       <div class="usage-info">
         <strong>Free tier:</strong> 30 questions/day powered by GPT-4o-mini via our proxy server. No setup needed.<br><br>
-        <strong>Unlimited:</strong> Add your own OpenAI API key above. Requests go directly to OpenAI — we never see your key.<br><br>
-        <strong>Get a key:</strong> Visit <a href="https://platform.openai.com/api-keys" target="_blank" style="color:#7c3aed">platform.openai.com/api-keys</a>
+        <strong>Your own key:</strong> Requests go directly to the API provider &mdash; your key stays on your device and is never sent to our servers.<br><br>
+        <strong>Helpful links:</strong><br>
+        &bull; <a href="https://platform.openai.com/usage" target="_blank" style="color:inherit">OpenAI usage dashboard</a><br>
+        &bull; <a href="https://platform.openai.com/docs/guides/rate-limits" target="_blank" style="color:inherit">OpenAI rate limits</a><br>
+        &bull; <a href="https://console.anthropic.com/settings/usage" target="_blank" style="color:inherit">Anthropic usage dashboard</a><br>
+        &bull; <a href="https://docs.anthropic.com/en/docs/about-claude/models" target="_blank" style="color:inherit">Claude models &amp; pricing</a>
       </div>
     </div>
   </div>
