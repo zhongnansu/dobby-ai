@@ -129,6 +129,24 @@ document.addEventListener('mouseup', (e) => {
   }, 10);
 });
 
+// Fallback: selectionchange fires even when sites (Gmail, etc.) capture mouseup
+let selectionChangeTimer = null;
+document.addEventListener('selectionchange', () => {
+  clearTimeout(selectionChangeTimer);
+  selectionChangeTimer = setTimeout(() => {
+    const selection = window.getSelection();
+    const text = selection.toString().trim();
+    if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
+      // Only show if trigger isn't already visible
+      if (!triggerButton || triggerButton.style.display === 'none') {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        showTrigger(rect.right, rect.bottom);
+      }
+    }
+  }, 300);
+});
+
 // Hide trigger on scroll, re-show after scroll stops
 let scrollTimer = null;
 window.addEventListener('scroll', () => {
