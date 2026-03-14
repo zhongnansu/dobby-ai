@@ -35,6 +35,9 @@ function validateContent(content) {
     return { valid: true };
   }
   if (Array.isArray(content)) {
+    if (content.length === 0) {
+      return { valid: false, error: 'Content array must not be empty' };
+    }
     let imageCount = 0;
     for (const item of content) {
       const result = validateContentItem(item);

@@ -86,6 +86,16 @@ describe('validatePayload', () => {
     expect(result.error).toContain('string or array');
   });
 
+  it('rejects empty content array', () => {
+    const result = validatePayload({
+      messages: [{ role: 'user', content: [] }],
+      signature: 'x',
+      timestamp: 1,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('empty');
+  });
+
   it('accepts content as array with text items', () => {
     const result = validatePayload({
       messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
