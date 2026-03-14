@@ -10,7 +10,7 @@ import {
 describe('PRESETS structure', () => {
   const expectedTypes = ['code', 'foreign', 'error', 'email', 'data', 'math', 'long', 'default', 'image'];
 
-  it('has all eight content types', () => {
+  it('has all nine content types', () => {
     for (const type of expectedTypes) {
       expect(PRESETS[type]).toBeDefined();
     }

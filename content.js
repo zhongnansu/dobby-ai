@@ -1,7 +1,7 @@
 // content.js — Glue script: wires context menu messages to bubble
 // All modules loaded via manifest.json content_scripts share this scope
 
-chrome.runtime.onMessage.addListener(async (msg) => {
+chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'SHOW_BUBBLE') {
     // When triggered from context menu, use approximate center-screen position
     const rect = {
@@ -12,17 +12,18 @@ chrome.runtime.onMessage.addListener(async (msg) => {
 
     // Image context menu click
     if (msg.image) {
-      let images = [];
-      if (typeof captureImage === 'function') {
-        const captured = await captureImage(msg.image);
-        if (captured) images = [captured];
-      }
-      if (images.length > 0) {
-        showBubbleWithPresets(rect, '', null, images);
-      } else {
-        // Fallback: couldn't capture image
-        showBubble(rect, [{ role: 'user', content: "Couldn't capture this image" }], '', 'Error');
-      }
+      (async () => {
+        let images = [];
+        if (typeof captureImage === 'function') {
+          const captured = await captureImage(msg.image);
+          if (captured) images = [captured];
+        }
+        if (images.length > 0) {
+          showBubbleWithPresets(rect, '', null, images);
+        } else {
+          showBubble(rect, [{ role: 'user', content: "Couldn't capture this image" }], '', 'Error');
+        }
+      })();
       return;
     }
 
