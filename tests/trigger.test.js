@@ -27,6 +27,8 @@ const {
   _setDobbyEnabled,
   startScreenshotMode,
   cancelScreenshotMode,
+  _showProgressRing,
+  _removeProgressRing,
 } = await import('../trigger.js');
 
 beforeEach(() => {
@@ -352,5 +354,76 @@ describe('screenshot mode', () => {
     toolbar = overlay.querySelector('[data-screenshot-toolbar]');
     expect(toolbar).not.toBeNull();
     cancelScreenshotMode();
+  });
+});
+
+describe('progress ring', () => {
+  beforeEach(() => {
+    cancelScreenshotMode();
+    // Remove any leftover progress ring style tags
+    document.getElementById('dobby-progress-ring-styles')?.remove();
+  });
+
+  it('_showProgressRing creates an SVG element at given coordinates', () => {
+    _showProgressRing(200, 150);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    expect(ring).not.toBeNull();
+    expect(ring.style.position).toBe('fixed');
+    expect(ring.style.pointerEvents).toBe('none');
+    expect(ring.style.zIndex).toBe('2147483645');
+    _removeProgressRing();
+  });
+
+  it('_showProgressRing centers the 48px ring on the coordinates', () => {
+    _showProgressRing(200, 150);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    expect(ring.style.left).toBe('176px'); // 200 - 24
+    expect(ring.style.top).toBe('126px');  // 150 - 24
+    _removeProgressRing();
+  });
+
+  it('_showProgressRing injects CSS style tag on first call', () => {
+    expect(document.getElementById('dobby-progress-ring-styles')).toBeNull();
+    _showProgressRing(100, 100);
+    expect(document.getElementById('dobby-progress-ring-styles')).not.toBeNull();
+    _removeProgressRing();
+  });
+
+  it('_showProgressRing does not duplicate style tag on second call', () => {
+    _showProgressRing(100, 100);
+    _removeProgressRing();
+    _showProgressRing(200, 200);
+    expect(document.querySelectorAll('#dobby-progress-ring-styles').length).toBe(1);
+    _removeProgressRing();
+  });
+
+  it('_removeProgressRing removes the ring element', () => {
+    _showProgressRing(100, 100);
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    _removeProgressRing();
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+  });
+
+  it('_removeProgressRing is safe to call when no ring exists', () => {
+    expect(() => _removeProgressRing()).not.toThrow();
+  });
+
+  it('_showProgressRing removes existing ring before creating new one', () => {
+    _showProgressRing(100, 100);
+    _showProgressRing(200, 200);
+    expect(document.querySelectorAll('[data-dobby-progress-ring]').length).toBe(1);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    expect(ring.style.left).toBe('176px'); // 200 - 24
+    _removeProgressRing();
+  });
+
+  it('ring contains SVG with camera icon', () => {
+    _showProgressRing(100, 100);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    const svg = ring.querySelector('svg');
+    expect(svg).not.toBeNull();
+    // Should have circles (track + animated) and camera icon paths
+    expect(svg.querySelectorAll('circle').length).toBeGreaterThanOrEqual(2);
+    _removeProgressRing();
   });
 });
