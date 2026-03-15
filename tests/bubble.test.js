@@ -384,6 +384,37 @@ describe('bubble.js', () => {
       expect(pinBtn.classList.contains('pinned')).toBe(false);
       expect(pinBtn.title).toBe('Pin');
     });
+
+    it('close button still works when pinned', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      shadow.querySelector('.pin-btn').click(); // pin it
+      expect(host._isPinned).toBe(true);
+      shadow.querySelector('.close-btn').click();
+      expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
+    });
+
+    it('Escape key closes bubble when pinned', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      shadow.querySelector('.pin-btn').click(); // pin it
+      expect(host._isPinned).toBe(true);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
+    });
+
+    it('pin resets to unpinned on new bubble open', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host1 = document.querySelector('#dobby-ai-bubble');
+      host1.shadowRoot.querySelector('.pin-btn').click(); // pin it
+      expect(host1._isPinned).toBe(true);
+      // Open new bubble (replaces the old one)
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test2');
+      const host2 = document.querySelector('#dobby-ai-bubble');
+      expect(host2._isPinned).toBe(false);
+    });
   });
 
   describe('image lightbox', () => {
