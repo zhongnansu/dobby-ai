@@ -157,6 +157,28 @@ function getStyles(theme) {
     }
     .response-text {
       word-break: break-word;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .message-user {
+      align-self: flex-end;
+      background: ${isDark ? '#7c3aed' : '#7c3aed'};
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 12px 12px 2px 12px;
+      max-width: 85%;
+      font-size: 13px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .message-ai {
+      align-self: flex-start;
+      background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+      padding: 8px 12px;
+      border-radius: 12px 12px 12px 2px;
+      max-width: 95%;
+      word-break: break-word;
     }
     .response-text code {
       background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
@@ -633,6 +655,11 @@ function startStreaming(shadow, messages) {
   const statusEl = shadow.querySelector('.bubble-status');
   const followUpInput = shadow.querySelector('.follow-up-input');
 
+  // Create a new AI message container for this response
+  const aiMsg = document.createElement('div');
+  aiMsg.className = 'message-ai';
+  responseEl.appendChild(aiMsg);
+
   statusEl.textContent = 'thinking...';
   cursorEl.classList.remove('hidden');
   cursorEl.classList.add('blink');
@@ -652,7 +679,7 @@ function startStreaming(shadow, messages) {
       if (!renderTimer) {
         renderTimer = setTimeout(() => {
           renderTimer = null;
-          responseEl.innerHTML = renderMarkdown(responseText);
+          aiMsg.innerHTML = renderMarkdown(responseText);
           const body = shadow.querySelector('.bubble-body');
           body.scrollTop = body.scrollHeight;
         }, 50);
@@ -661,7 +688,7 @@ function startStreaming(shadow, messages) {
     (usageInfo) => {
       // Flush any pending render
       if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
-      responseEl.innerHTML = renderMarkdown(responseText);
+      aiMsg.innerHTML = renderMarkdown(responseText);
       if (usageInfo && usageInfo.usingOwnKey) {
         statusEl.textContent = 'your API key';
       } else if (usageInfo && usageInfo.remaining != null) {
@@ -711,12 +738,12 @@ function startStreaming(shadow, messages) {
         retryBtn.textContent = 'Retry';
         retryBtn.addEventListener('click', () => {
           errorDiv.remove();
+          aiMsg.remove();
           responseText = '';
-          responseEl.innerHTML = '';
           startStreaming(shadow, messages);
         });
         errorDiv.appendChild(retryBtn);
-        responseEl.appendChild(errorDiv);
+        aiMsg.appendChild(errorDiv);
       }
     }
   );
@@ -724,8 +751,18 @@ function startStreaming(shadow, messages) {
 
 function handleFollowUp(shadow, question) {
   const responseEl = shadow.querySelector('.response-text');
-  // Show separator
-  responseEl.innerHTML += '<br><br><strong>You:</strong> ' + escapeHtml(question) + '<br><br>';
+
+  // Add user message bubble
+  const userMsg = document.createElement('div');
+  userMsg.className = 'message-user';
+  userMsg.textContent = question;
+  responseEl.appendChild(userMsg);
+
+  // Scroll to show the user message
+  const body = shadow.querySelector('.bubble-body');
+  body.scrollTop = body.scrollHeight;
+
+  // Reset responseText for the new AI reply (previous messages stay in DOM)
   responseText = '';
 
   currentMessages = buildFollowUp(currentMessages, question);
