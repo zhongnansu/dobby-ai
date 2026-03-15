@@ -336,6 +336,9 @@ function startScreenshotMode() {
   screenshotOverlay.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Clear existing toolbar if user re-drags on overlay
+    const existingToolbar = screenshotOverlay.querySelector('[data-screenshot-toolbar]');
+    if (existingToolbar) existingToolbar.remove();
     screenshotDragStarted = true;
     screenshotStartX = e.clientX;
     screenshotStartY = e.clientY;
@@ -348,7 +351,7 @@ function startScreenshotMode() {
     });
   });
 
-  screenshotOverlay.addEventListener('mouseup', async (e) => {
+  screenshotOverlay.addEventListener('mouseup', (e) => {
     // Ignore the mouseup from the long-press release (no drag started yet)
     if (!screenshotDragStarted) return;
 
@@ -364,21 +367,13 @@ function startScreenshotMode() {
       return;
     }
 
-    cancelScreenshotMode();
+    // Lock the selection rectangle with solid border
+    Object.assign(screenshotRect.style, {
+      border: '2px solid #7c3aed',
+    });
 
-    const rect = { x, y, width: w, height: h };
-    if (typeof captureScreenshot === 'function') {
-      const captured = await captureScreenshot(rect);
-      if (captured) {
-        const bubbleRect = {
-          bottom: y + h + 8,
-          left: x,
-          right: x + w,
-          top: y,
-        };
-        showBubbleWithPresets(bubbleRect, '', null, [captured]);
-      }
-    }
+    // Show confirmation toolbar below the selection
+    _showConfirmToolbar(screenshotOverlay, banner, { x, y, width: w, height: h });
   });
 
   const escHandler = (e) => {
@@ -391,6 +386,116 @@ function startScreenshotMode() {
   screenshotOverlay._escHandler = escHandler;
 
   document.body.appendChild(screenshotOverlay);
+}
+
+function _showConfirmToolbar(overlay, banner, rect) {
+  // Remove existing toolbar if any
+  const existing = overlay.querySelector('[data-screenshot-toolbar]');
+  if (existing) existing.remove();
+
+  // Update banner text
+  banner.textContent = 'Confirm selection or reselect';
+
+  const toolbar = document.createElement('div');
+  toolbar.setAttribute('data-screenshot-toolbar', '');
+
+  // Position below the selection, centered horizontally
+  const toolbarTop = Math.min(rect.y + rect.height + 12, window.innerHeight - 52);
+  const toolbarLeft = rect.x + rect.width / 2;
+
+  Object.assign(toolbar.style, {
+    position: 'fixed',
+    top: toolbarTop + 'px',
+    left: toolbarLeft + 'px',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '8px',
+    zIndex: '2147483647',
+  });
+
+  const btnBase = {
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 16px',
+    fontSize: '13px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontWeight: '500',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+  };
+
+  // Confirm button
+  const confirmBtn = document.createElement('button');
+  confirmBtn.textContent = 'Capture';
+  Object.assign(confirmBtn.style, {
+    ...btnBase,
+    background: '#7c3aed',
+    color: 'white',
+  });
+  confirmBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    cancelScreenshotMode();
+    try {
+      if (typeof captureScreenshot === 'function') {
+        const captured = await captureScreenshot(rect);
+        if (captured) {
+          const bubbleRect = {
+            bottom: rect.y + rect.height + 8,
+            left: rect.x,
+            right: rect.x + rect.width,
+            top: rect.y,
+          };
+          showBubbleWithPresets(bubbleRect, '', null, [captured]);
+        }
+      }
+    } catch (err) {
+      console.error('[Dobby AI] Screenshot capture failed:', err);
+    }
+  });
+
+  // Reselect button
+  const reselectBtn = document.createElement('button');
+  reselectBtn.textContent = 'Reselect';
+  Object.assign(reselectBtn.style, {
+    ...btnBase,
+    background: 'rgba(255, 255, 255, 0.9)',
+    color: '#374151',
+  });
+  reselectBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toolbar.remove();
+    Object.assign(screenshotRect.style, {
+      display: 'none',
+      border: '2px dashed #7c3aed',
+      width: '0px',
+      height: '0px',
+    });
+    screenshotDragStarted = false;
+    banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
+  });
+
+  // Cancel button
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  Object.assign(cancelBtn.style, {
+    ...btnBase,
+    background: 'rgba(255, 255, 255, 0.9)',
+    color: '#6b7280',
+  });
+  cancelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cancelScreenshotMode();
+  });
+
+  toolbar.appendChild(confirmBtn);
+  toolbar.appendChild(reselectBtn);
+  toolbar.appendChild(cancelBtn);
+  overlay.appendChild(toolbar);
+
+  // Prevent overlay mousedown from starting a new drag while toolbar is shown
+  toolbar.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+  });
 }
 
 function cancelScreenshotMode() {

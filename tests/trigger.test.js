@@ -238,4 +238,103 @@ describe('screenshot mode', () => {
   it('cancelScreenshotMode is safe to call when not in screenshot mode', () => {
     expect(() => cancelScreenshotMode()).not.toThrow();
   });
+
+  function simulateDrag(overlay, startX, startY, endX, endY) {
+    overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: startX, clientY: startY, bubbles: true }));
+    overlay.dispatchEvent(new MouseEvent('mouseup', { clientX: endX, clientY: endY, bubbles: true }));
+  }
+
+  it('shows confirmation toolbar after valid drag selection', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    const toolbar = overlay.querySelector('[data-screenshot-toolbar]');
+    expect(toolbar).not.toBeNull();
+    expect(toolbar.textContent).toContain('Capture');
+    expect(toolbar.textContent).toContain('Reselect');
+    expect(toolbar.textContent).toContain('Cancel');
+    cancelScreenshotMode();
+  });
+
+  it('updates banner text after selection', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    expect(overlay.textContent).toContain('Confirm selection or reselect');
+    cancelScreenshotMode();
+  });
+
+  it('reselect button resets selection and restores banner', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    const toolbar = overlay.querySelector('[data-screenshot-toolbar]');
+    const reselectBtn = toolbar.querySelectorAll('button')[1]; // second button
+    reselectBtn.click();
+    // Toolbar should be removed
+    expect(overlay.querySelector('[data-screenshot-toolbar]')).toBeNull();
+    // Overlay should still be present
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
+    // Banner should reset
+    expect(overlay.textContent).toContain('Drag to select a region');
+    cancelScreenshotMode();
+  });
+
+  it('cancel button in toolbar removes overlay', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    const toolbar = overlay.querySelector('[data-screenshot-toolbar]');
+    const cancelBtn = toolbar.querySelectorAll('button')[2]; // third button
+    cancelBtn.click();
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+  });
+
+  it('capture button calls captureScreenshot and dismisses overlay', async () => {
+    global.captureScreenshot = vi.fn(() => Promise.resolve('data:image/png;base64,abc'));
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    const toolbar = overlay.querySelector('[data-screenshot-toolbar]');
+    const captureBtn = toolbar.querySelectorAll('button')[0]; // first button
+    captureBtn.click();
+    await vi.waitFor(() => {
+      expect(global.captureScreenshot).toHaveBeenCalled();
+    });
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+    delete global.captureScreenshot;
+  });
+
+  it('does not show toolbar for too-small drag', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 55, 55); // 5x5 < 10x10 threshold
+    expect(overlay.querySelector('[data-screenshot-toolbar]')).toBeNull();
+    cancelScreenshotMode();
+  });
+
+  it('re-drag on overlay clears existing toolbar', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    expect(overlay.querySelector('[data-screenshot-toolbar]')).not.toBeNull();
+    // Start a new drag (mousedown on overlay outside toolbar)
+    overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: 300, clientY: 300, bubbles: true }));
+    expect(overlay.querySelector('[data-screenshot-toolbar]')).toBeNull();
+    cancelScreenshotMode();
+  });
+
+  it('re-drag after reselect shows new toolbar', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    // First drag
+    simulateDrag(overlay, 50, 50, 200, 200);
+    let toolbar = overlay.querySelector('[data-screenshot-toolbar]');
+    toolbar.querySelectorAll('button')[1].click(); // reselect
+    // Second drag
+    simulateDrag(overlay, 100, 100, 300, 300);
+    toolbar = overlay.querySelector('[data-screenshot-toolbar]');
+    expect(toolbar).not.toBeNull();
+    cancelScreenshotMode();
+  });
 });
