@@ -324,6 +324,21 @@ describe('screenshot mode', () => {
     cancelScreenshotMode();
   });
 
+  it('mousemove after selection does not resize rectangle', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    // Toolbar is showing — selection is locked
+    const rect = overlay.querySelector('div[style*="dashed"], div[style*="solid"]');
+    const widthAfterSelection = rect.style.width;
+    const heightAfterSelection = rect.style.height;
+    // Move mouse — should NOT resize
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 400, bubbles: true }));
+    expect(rect.style.width).toBe(widthAfterSelection);
+    expect(rect.style.height).toBe(heightAfterSelection);
+    cancelScreenshotMode();
+  });
+
   it('re-drag after reselect shows new toolbar', () => {
     startScreenshotMode();
     const overlay = document.querySelector('div[style*="crosshair"]');

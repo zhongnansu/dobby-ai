@@ -367,6 +367,9 @@ function startScreenshotMode() {
       return;
     }
 
+    // Stop tracking drag so mousemove no longer resizes the rectangle
+    screenshotDragStarted = false;
+
     // Lock the selection rectangle with solid border
     Object.assign(screenshotRect.style, {
       border: '2px solid #7c3aed',
