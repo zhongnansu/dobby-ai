@@ -34,7 +34,6 @@ jobs:
 
       - name: Run tests with coverage
         id: coverage
-        continue-on-error: true
         run: |
           npx vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text 2>&1 | tee /tmp/coverage-text.txt
 
@@ -44,7 +43,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const THRESHOLD = 70;
+            const THRESHOLD = 80;
 
             const coveragePath = 'coverage/coverage-summary.json';
 
@@ -134,4 +133,13 @@ jobs:
                 issue_number: context.issue.number,
                 body: commentBody,
               });
+            }
+
+            // Hard-fail the CI if coverage is below threshold
+            if (fs.existsSync(coveragePath)) {
+              const summaryJson = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+              const overallPct = summaryJson.total.statements.pct;
+              if (overallPct < THRESHOLD) {
+                core.setFailed(`Coverage ${overallPct.toFixed(1)}% is below the ${THRESHOLD}% threshold`);
+              }
             }
