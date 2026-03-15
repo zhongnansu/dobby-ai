@@ -79,6 +79,7 @@ function getStyles(theme) {
     :host { all: initial; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .bubble {
+      position: relative;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       width: 380px;
       max-height: 420px;
@@ -153,7 +154,6 @@ function getStyles(theme) {
       flex: 1;
       overflow-y: auto;
       padding: 12px 14px;
-      max-height: 260px;
     }
     .response-text {
       word-break: break-word;
@@ -343,6 +343,25 @@ function getStyles(theme) {
       font-size: 12px;
       padding: 8px;
     }
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 16px;
+      height: 16px;
+      cursor: se-resize;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .resize-handle svg {
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+    .resize-handle:hover svg {
+      opacity: 0.8;
+    }
   `;
 }
 
@@ -404,6 +423,12 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
         <button class="action-btn history-btn" title="History">\ud83d\udd50</button>
       </div>
     </div>
+    <div class="resize-handle" title="Drag to resize">
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <line x1="8" y1="4" x2="4" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
   `;
 }
 
@@ -441,6 +466,48 @@ function wireCommonEvents(shadow) {
       overlay.focus();
     }
   });
+  // Resize handle
+  const resizeHandle = shadow.querySelector('.resize-handle');
+  if (resizeHandle) {
+    resizeHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const bubble = shadow.querySelector('.bubble');
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startWidth = bubble.getBoundingClientRect().width;
+      const startHeight = bubble.getBoundingClientRect().height;
+
+      const onMouseMove = (moveEvent) => {
+        moveEvent.preventDefault();
+        const newWidth = Math.min(
+          Math.max(300, startWidth + moveEvent.clientX - startX),
+          window.innerWidth * 0.8
+        );
+        const newHeight = Math.min(
+          Math.max(200, startHeight + moveEvent.clientY - startY),
+          window.innerHeight * 0.8
+        );
+        bubble.style.width = newWidth + 'px';
+        bubble.style.height = newHeight + 'px';
+        bubble.style.maxHeight = 'none';
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+
+      // Store cleanup reference for hideBubble
+      bubbleHost._resizeCleanup = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+    });
+  }
 }
 
 function activateResponseSection(shadow, messages) {
@@ -759,6 +826,9 @@ function hideBubble() {
     currentRequest = null;
   }
   if (bubbleHost) {
+    if (bubbleHost._resizeCleanup) {
+      bubbleHost._resizeCleanup();
+    }
     if (bubbleHost._escHandler) document.removeEventListener('keydown', bubbleHost._escHandler);
     if (bubbleHost.parentNode) bubbleHost.parentNode.removeChild(bubbleHost);
   }

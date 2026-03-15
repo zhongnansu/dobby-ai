@@ -271,6 +271,91 @@ describe('bubble.js', () => {
     });
   });
 
+  describe('resize handle', () => {
+    it('renders a resize handle in the bubble', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+      expect(handle).not.toBeNull();
+    });
+
+    it('resizes bubble on mousedown + mousemove on handle', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+      const bubble = shadow.querySelector('.bubble');
+
+      // jsdom getBoundingClientRect returns 0; delta must exceed min constraints (300x200)
+      handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 300, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      // Bubble should have resized (0 + 400 = 400 > min 300, 0 + 300 = 300 > min 200)
+      expect(parseInt(bubble.style.width)).toBe(400);
+      expect(parseInt(bubble.style.height)).toBe(300);
+    });
+
+    it('enforces minimum size of 300x200', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+      const bubble = shadow.querySelector('.bubble');
+
+      handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 430, clientY: 520, bubbles: true }));
+      // Drag far to the left/up to shrink below minimum
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(parseInt(bubble.style.width)).toBeGreaterThanOrEqual(300);
+      expect(parseInt(bubble.style.height)).toBeGreaterThanOrEqual(200);
+    });
+
+    it('stops resizing after mouseup', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+      const bubble = shadow.querySelector('.bubble');
+
+      handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 300, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      const widthAfterRelease = bubble.style.width;
+      // Further mousemove should not change size
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 700, clientY: 700, bubbles: true }));
+      expect(bubble.style.width).toBe(widthAfterRelease);
+    });
+
+    it('close button still works after resize', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+      const bubble = shadow.querySelector('.bubble');
+
+      // Resize first
+      handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 300, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      // Close should still work
+      shadow.querySelector('.close-btn').click();
+      expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
+    });
+
+    it('cleans up resize listeners when bubble is hidden during resize', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+
+      // Start resize but don't release
+      handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 430, clientY: 520, bubbles: true }));
+
+      // Hide bubble while resize is active
+      expect(() => hideBubble()).not.toThrow();
+      expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
+    });
+  });
+
   describe('image lightbox', () => {
     it('opens lightbox overlay when image is clicked', () => {
       showBubble({ bottom: 100, left: 50, right: 250 }, []);
