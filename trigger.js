@@ -461,12 +461,12 @@ document.addEventListener('mousedown', (e) => {
   }
   if (screenshotOverlay) return;
 
+  if (!dobbyEnabled) return;
+
   longPressStartX = e.clientX;
   longPressStartY = e.clientY;
 
-  if (dobbyEnabled) {
-    _showProgressRing(e.clientX, e.clientY);
-  }
+  _showProgressRing(e.clientX, e.clientY);
 
   longPressTimer = setTimeout(() => {
     startScreenshotMode();
