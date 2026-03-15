@@ -457,7 +457,8 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
 function wireCommonEvents(shadow) {
   shadow.querySelector('.close-btn').addEventListener('click', hideBubble);
   shadow.querySelector('.copy-btn').addEventListener('click', () => {
-    navigator.clipboard.writeText(responseText).catch(() => {});
+    const allText = shadow.querySelector('.response-text').innerText;
+    navigator.clipboard.writeText(allText).catch(() => {});
   });
   shadow.querySelector('.history-btn').addEventListener('click', () => {
     showHistoryPanel(shadow);
@@ -847,7 +848,14 @@ function appendToken(text) {
   const shadow = bubbleHost.shadowRoot;
   const responseEl = shadow.querySelector('.response-text');
   responseText += text;
-  responseEl.innerHTML = renderMarkdown(responseText);
+  // Write into the latest .message-ai div to preserve previous messages
+  let aiMsg = responseEl.querySelector('.message-ai:last-child');
+  if (!aiMsg) {
+    aiMsg = document.createElement('div');
+    aiMsg.className = 'message-ai';
+    responseEl.appendChild(aiMsg);
+  }
+  aiMsg.innerHTML = renderMarkdown(responseText);
 }
 
 function setBubbleStatus(status) {
