@@ -313,6 +313,17 @@ describe('screenshot mode', () => {
     cancelScreenshotMode();
   });
 
+  it('re-drag on overlay clears existing toolbar', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    expect(overlay.querySelector('[data-screenshot-toolbar]')).not.toBeNull();
+    // Start a new drag (mousedown on overlay outside toolbar)
+    overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: 300, clientY: 300, bubbles: true }));
+    expect(overlay.querySelector('[data-screenshot-toolbar]')).toBeNull();
+    cancelScreenshotMode();
+  });
+
   it('re-drag after reselect shows new toolbar', () => {
     startScreenshotMode();
     const overlay = document.querySelector('div[style*="crosshair"]');

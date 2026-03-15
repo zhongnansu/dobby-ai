@@ -336,6 +336,9 @@ function startScreenshotMode() {
   screenshotOverlay.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Clear existing toolbar if user re-drags on overlay
+    const existingToolbar = screenshotOverlay.querySelector('[data-screenshot-toolbar]');
+    if (existingToolbar) existingToolbar.remove();
     screenshotDragStarted = true;
     screenshotStartX = e.clientX;
     screenshotStartY = e.clientY;
@@ -432,17 +435,21 @@ function _showConfirmToolbar(overlay, banner, rect) {
   confirmBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     cancelScreenshotMode();
-    if (typeof captureScreenshot === 'function') {
-      const captured = await captureScreenshot(rect);
-      if (captured) {
-        const bubbleRect = {
-          bottom: rect.y + rect.height + 8,
-          left: rect.x,
-          right: rect.x + rect.width,
-          top: rect.y,
-        };
-        showBubbleWithPresets(bubbleRect, '', null, [captured]);
+    try {
+      if (typeof captureScreenshot === 'function') {
+        const captured = await captureScreenshot(rect);
+        if (captured) {
+          const bubbleRect = {
+            bottom: rect.y + rect.height + 8,
+            left: rect.x,
+            right: rect.x + rect.width,
+            top: rect.y,
+          };
+          showBubbleWithPresets(bubbleRect, '', null, [captured]);
+        }
       }
+    } catch (err) {
+      console.error('[Dobby AI] Screenshot capture failed:', err);
     }
   });
 
@@ -457,8 +464,12 @@ function _showConfirmToolbar(overlay, banner, rect) {
   reselectBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toolbar.remove();
-    screenshotRect.style.display = 'none';
-    screenshotRect.style.border = '2px dashed #7c3aed';
+    Object.assign(screenshotRect.style, {
+      display: 'none',
+      border: '2px dashed #7c3aed',
+      width: '0px',
+      height: '0px',
+    });
     screenshotDragStarted = false;
     banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
   });
