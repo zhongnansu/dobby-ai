@@ -255,7 +255,7 @@ document.addEventListener('mousemove', (e) => {
   }
 
   // Screenshot region drag
-  if (screenshotOverlay && screenshotRect) {
+  if (screenshotOverlay && screenshotRect && screenshotDragStarted) {
     const x = Math.min(screenshotStartX, e.clientX);
     const y = Math.min(screenshotStartY, e.clientY);
     const w = Math.abs(e.clientX - screenshotStartX);
@@ -310,7 +310,7 @@ function startScreenshotMode() {
   banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
   screenshotOverlay.appendChild(banner);
 
-  // Animated border around the viewport
+  // Visual border around the viewport
   const border = document.createElement('div');
   Object.assign(border.style, {
     position: 'fixed',
@@ -357,9 +357,14 @@ function startScreenshotMode() {
     const w = Math.abs(e.clientX - screenshotStartX);
     const h = Math.abs(e.clientY - screenshotStartY);
 
-    cancelScreenshotMode();
+    // Too small — reset selection and let user try again
+    if (w < 10 || h < 10) {
+      screenshotRect.style.display = 'none';
+      screenshotDragStarted = false;
+      return;
+    }
 
-    if (w < 10 || h < 10) return; // Too small, ignore
+    cancelScreenshotMode();
 
     const rect = { x, y, width: w, height: h };
     if (typeof captureScreenshot === 'function') {

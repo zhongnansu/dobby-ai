@@ -25,6 +25,8 @@ const {
   hideTrigger,
   _resetTriggerForTesting,
   _setDobbyEnabled,
+  startScreenshotMode,
+  cancelScreenshotMode,
 } = await import('../trigger.js');
 
 beforeEach(() => {
@@ -182,5 +184,58 @@ describe('event-driven behavior', () => {
       document.body,
       undefined
     );
+  });
+});
+
+describe('screenshot mode', () => {
+  beforeEach(() => {
+    cancelScreenshotMode();
+  });
+
+  it('startScreenshotMode creates overlay with banner', () => {
+    startScreenshotMode();
+    const overlays = document.querySelectorAll('div[style*="crosshair"]');
+    expect(overlays.length).toBe(1);
+    expect(overlays[0].textContent).toContain('Drag to select a region');
+    cancelScreenshotMode();
+  });
+
+  it('cancelScreenshotMode removes the overlay', () => {
+    startScreenshotMode();
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
+    cancelScreenshotMode();
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+  });
+
+  it('ESC key cancels screenshot mode', () => {
+    startScreenshotMode();
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+  });
+
+  it('mouseup without prior mousedown on overlay does not dismiss it', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    // Simulate the mouseup from long-press release (no mousedown on overlay)
+    overlay.dispatchEvent(new MouseEvent('mouseup', { clientX: 100, clientY: 100, bubbles: true }));
+    // Overlay should still be present
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
+    cancelScreenshotMode();
+  });
+
+  it('click-without-drag resets selection instead of dismissing overlay', () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    // mousedown then mouseup at same position (no drag)
+    overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100, bubbles: true }));
+    overlay.dispatchEvent(new MouseEvent('mouseup', { clientX: 100, clientY: 100, bubbles: true }));
+    // Overlay should still be present (not dismissed)
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
+    cancelScreenshotMode();
+  });
+
+  it('cancelScreenshotMode is safe to call when not in screenshot mode', () => {
+    expect(() => cancelScreenshotMode()).not.toThrow();
   });
 });
