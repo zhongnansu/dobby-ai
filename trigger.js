@@ -210,12 +210,13 @@ async function extractImagesFromSelection(selection, maxImages = 2) {
 let longPressTimer = null;
 let longPressStartX = 0;
 let longPressStartY = 0;
-const LONG_PRESS_DURATION = 1500;
+const LONG_PRESS_DURATION = 1000;
 const MOVEMENT_THRESHOLD = 5;
 let screenshotOverlay = null;
 let screenshotStartX = 0;
 let screenshotStartY = 0;
 let screenshotRect = null;
+let screenshotDragStarted = false;
 
 function isInputElement(el) {
   if (!el) return false;
@@ -283,9 +284,42 @@ function startScreenshotMode() {
     position: 'fixed',
     inset: '0',
     zIndex: '2147483646',
-    background: 'rgba(0, 0, 0, 0.3)',
+    background: 'rgba(0, 0, 0, 0.4)',
     cursor: 'crosshair',
   });
+
+  // Instruction banner at the top
+  const banner = document.createElement('div');
+  Object.assign(banner.style, {
+    position: 'fixed',
+    top: '16px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(124, 58, 237, 0.9)',
+    color: 'white',
+    padding: '10px 24px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontWeight: '500',
+    zIndex: '2147483647',
+    pointerEvents: 'none',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+    letterSpacing: '0.3px',
+  });
+  banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
+  screenshotOverlay.appendChild(banner);
+
+  // Animated border around the viewport
+  const border = document.createElement('div');
+  Object.assign(border.style, {
+    position: 'fixed',
+    inset: '0',
+    border: '2px solid rgba(124, 58, 237, 0.6)',
+    pointerEvents: 'none',
+    zIndex: '2147483647',
+  });
+  screenshotOverlay.appendChild(border);
 
   screenshotRect = document.createElement('div');
   Object.assign(screenshotRect.style, {
@@ -297,9 +331,12 @@ function startScreenshotMode() {
   });
   screenshotOverlay.appendChild(screenshotRect);
 
+  screenshotDragStarted = false;
+
   screenshotOverlay.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    screenshotDragStarted = true;
     screenshotStartX = e.clientX;
     screenshotStartY = e.clientY;
     screenshotRect.style.display = 'block';
@@ -312,6 +349,9 @@ function startScreenshotMode() {
   });
 
   screenshotOverlay.addEventListener('mouseup', async (e) => {
+    // Ignore the mouseup from the long-press release (no drag started yet)
+    if (!screenshotDragStarted) return;
+
     const x = Math.min(screenshotStartX, e.clientX);
     const y = Math.min(screenshotStartY, e.clientY);
     const w = Math.abs(e.clientX - screenshotStartX);
@@ -358,6 +398,7 @@ function cancelScreenshotMode() {
     }
     screenshotOverlay = null;
     screenshotRect = null;
+    screenshotDragStarted = false;
   }
 }
 
