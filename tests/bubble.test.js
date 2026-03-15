@@ -278,6 +278,22 @@ describe('bubble.js', () => {
       const handle = shadow.querySelector('.resize-handle');
       expect(handle).not.toBeNull();
     });
+
+    it('resizes bubble on mousedown + mousemove on handle', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+      const bubble = shadow.querySelector('.bubble');
+
+      // jsdom getBoundingClientRect returns 0; delta must exceed min constraints (300x200)
+      handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 300, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      // Bubble should have resized (0 + 400 = 400 > min 300, 0 + 300 = 300 > min 200)
+      expect(parseInt(bubble.style.width)).toBe(400);
+      expect(parseInt(bubble.style.height)).toBe(300);
+    });
   });
 
   describe('image lightbox', () => {

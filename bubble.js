@@ -154,7 +154,6 @@ function getStyles(theme) {
       flex: 1;
       overflow-y: auto;
       padding: 12px 14px;
-      max-height: 260px;
     }
     .response-text {
       word-break: break-word;
@@ -467,6 +466,48 @@ function wireCommonEvents(shadow) {
       overlay.focus();
     }
   });
+  // Resize handle
+  const resizeHandle = shadow.querySelector('.resize-handle');
+  if (resizeHandle) {
+    resizeHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const bubble = shadow.querySelector('.bubble');
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startWidth = bubble.getBoundingClientRect().width;
+      const startHeight = bubble.getBoundingClientRect().height;
+
+      const onMouseMove = (moveEvent) => {
+        moveEvent.preventDefault();
+        const newWidth = Math.min(
+          Math.max(300, startWidth + moveEvent.clientX - startX),
+          window.innerWidth * 0.8
+        );
+        const newHeight = Math.min(
+          Math.max(200, startHeight + moveEvent.clientY - startY),
+          window.innerHeight * 0.8
+        );
+        bubble.style.width = newWidth + 'px';
+        bubble.style.height = newHeight + 'px';
+        bubble.style.maxHeight = 'none';
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+
+      // Store cleanup reference for hideBubble
+      bubbleHost._resizeCleanup = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+    });
+  }
 }
 
 function activateResponseSection(shadow, messages) {
@@ -785,6 +826,9 @@ function hideBubble() {
     currentRequest = null;
   }
   if (bubbleHost) {
+    if (bubbleHost._resizeCleanup) {
+      bubbleHost._resizeCleanup();
+    }
     if (bubbleHost._escHandler) document.removeEventListener('keydown', bubbleHost._escHandler);
     if (bubbleHost.parentNode) bubbleHost.parentNode.removeChild(bubbleHost);
   }
