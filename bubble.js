@@ -454,6 +454,14 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
 
 function wireCommonEvents(shadow) {
   shadow.querySelector('.close-btn').addEventListener('click', hideBubble);
+  const pinBtn = shadow.querySelector('.pin-btn');
+  if (pinBtn) {
+    pinBtn.addEventListener('click', () => {
+      bubbleHost._isPinned = !bubbleHost._isPinned;
+      pinBtn.classList.toggle('pinned', bubbleHost._isPinned);
+      pinBtn.title = bubbleHost._isPinned ? 'Unpin' : 'Pin';
+    });
+  }
   shadow.querySelector('.copy-btn').addEventListener('click', () => {
     navigator.clipboard.writeText(responseText).catch(() => {});
   });

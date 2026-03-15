@@ -364,6 +364,26 @@ describe('bubble.js', () => {
       expect(pinBtn).not.toBeNull();
       expect(pinBtn.title).toBe('Pin');
     });
+
+    it('toggles pinned state on click', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      const pinBtn = shadow.querySelector('.pin-btn');
+
+      expect(host._isPinned).toBe(false);
+      expect(pinBtn.classList.contains('pinned')).toBe(false);
+
+      pinBtn.click();
+      expect(host._isPinned).toBe(true);
+      expect(pinBtn.classList.contains('pinned')).toBe(true);
+      expect(pinBtn.title).toBe('Unpin');
+
+      pinBtn.click();
+      expect(host._isPinned).toBe(false);
+      expect(pinBtn.classList.contains('pinned')).toBe(false);
+      expect(pinBtn.title).toBe('Pin');
+    });
   });
 
   describe('image lightbox', () => {
