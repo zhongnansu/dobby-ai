@@ -284,7 +284,7 @@ function _ensureProgressRingStyles() {
   style.id = 'dobby-progress-ring-styles';
   style.textContent = `
     @keyframes dobby-ring-fill {
-      from { stroke-dashoffset: 188.4; }
+      from { stroke-dashoffset: 144.5; }
       to { stroke-dashoffset: 0; }
     }
     @keyframes dobby-icon-fade {
@@ -303,9 +303,9 @@ function _showProgressRing(x, y) {
   _removeProgressRing();
   _ensureProgressRingStyles();
 
-  const SIZE = 72;
+  const SIZE = 56;
   const HALF = SIZE / 2;
-  const RADIUS = 30;
+  const RADIUS = 23;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ~188.4
 
   const container = document.createElement('div');
@@ -375,8 +375,8 @@ function _showProgressRing(x, y) {
 
   // Camera icon (separate SVG, not rotated)
   const iconSvg = document.createElementNS(svgNS, 'svg');
-  iconSvg.setAttribute('width', '24');
-  iconSvg.setAttribute('height', '24');
+  iconSvg.setAttribute('width', '20');
+  iconSvg.setAttribute('height', '20');
   iconSvg.setAttribute('viewBox', '0 0 24 24');
   iconSvg.setAttribute('fill', 'none');
   iconSvg.setAttribute('stroke', '#7c3aed');
