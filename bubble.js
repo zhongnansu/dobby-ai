@@ -163,7 +163,7 @@ function getStyles(theme) {
     }
     .message-user {
       align-self: flex-end;
-      background: ${isDark ? '#7c3aed' : '#7c3aed'};
+      background: #7c3aed;
       color: #fff;
       padding: 6px 12px;
       border-radius: 12px 12px 2px 12px;
