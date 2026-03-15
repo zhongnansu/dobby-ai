@@ -271,6 +271,15 @@ describe('bubble.js', () => {
     });
   });
 
+  describe('resize handle', () => {
+    it('renders a resize handle in the bubble', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const handle = shadow.querySelector('.resize-handle');
+      expect(handle).not.toBeNull();
+    });
+  });
+
   describe('image lightbox', () => {
     it('opens lightbox overlay when image is clicked', () => {
       showBubble({ bottom: 100, left: 50, right: 250 }, []);

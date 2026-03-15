@@ -79,6 +79,7 @@ function getStyles(theme) {
     :host { all: initial; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .bubble {
+      position: relative;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       width: 380px;
       max-height: 420px;
@@ -343,6 +344,25 @@ function getStyles(theme) {
       font-size: 12px;
       padding: 8px;
     }
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 16px;
+      height: 16px;
+      cursor: se-resize;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .resize-handle svg {
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+    .resize-handle:hover svg {
+      opacity: 0.8;
+    }
   `;
 }
 
@@ -403,6 +423,12 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
         <button class="action-btn copy-btn" title="Copy">\ud83d\udccb</button>
         <button class="action-btn history-btn" title="History">\ud83d\udd50</button>
       </div>
+    </div>
+    <div class="resize-handle" title="Drag to resize">
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <line x1="8" y1="4" x2="4" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
     </div>
   `;
 }
