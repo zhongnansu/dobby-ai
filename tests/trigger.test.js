@@ -353,4 +353,62 @@ describe('screenshot mode', () => {
     expect(toolbar).not.toBeNull();
     cancelScreenshotMode();
   });
+
+  it('does not start screenshot mode when clicking on scrollbar area', () => {
+    vi.useFakeTimers();
+    _setDobbyEnabled(true);
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 1030, clientY: 100, bubbles: true,
+    }));
+    vi.advanceTimersByTime(1100);
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it('does not start screenshot mode when clicking on interactive elements', () => {
+    vi.useFakeTimers();
+    _setDobbyEnabled(true);
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    button.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true,
+    }));
+    vi.advanceTimersByTime(1100);
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+    button.remove();
+    vi.useRealTimers();
+  });
+
+  it('does not start screenshot mode when clicking on a link', () => {
+    vi.useFakeTimers();
+    _setDobbyEnabled(true);
+    const link = document.createElement('a');
+    link.href = '#';
+    document.body.appendChild(link);
+    link.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true,
+    }));
+    vi.advanceTimersByTime(1100);
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+    link.remove();
+    vi.useRealTimers();
+  });
+
+  it('does not start screenshot mode when clicking inside a role=button element', () => {
+    vi.useFakeTimers();
+    _setDobbyEnabled(true);
+    const div = document.createElement('div');
+    div.setAttribute('role', 'button');
+    const span = document.createElement('span');
+    div.appendChild(span);
+    document.body.appendChild(div);
+    span.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true,
+    }));
+    vi.advanceTimersByTime(1100);
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+    div.remove();
+    vi.useRealTimers();
+  });
 });
