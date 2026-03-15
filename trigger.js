@@ -306,7 +306,7 @@ function _showProgressRing(x, y) {
   const SIZE = 56;
   const HALF = SIZE / 2;
   const RADIUS = 23;
-  const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ~188.4
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ~144.5
 
   const container = document.createElement('div');
   container.setAttribute('data-dobby-progress-ring', '');
