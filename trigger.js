@@ -218,17 +218,27 @@ let screenshotStartY = 0;
 let screenshotRect = null;
 let screenshotDragStarted = false;
 
-function isInputElement(el) {
-  if (!el) return false;
-  const tag = el.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+const INTERACTIVE_TAGS = new Set([
+  'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'AUDIO', 'LABEL', 'OPTION',
+]);
+
+function isInteractiveElement(el) {
+  if (!el || !el.tagName) return false;
+  if (INTERACTIVE_TAGS.has(el.tagName)) return true;
   if (el.isContentEditable) return true;
+  if (el.closest && el.closest('button, a, select, label, [role="button"], [role="slider"], [role="scrollbar"]')) return true;
   return false;
+}
+
+function isScrollbarClick(e) {
+  return e.clientX >= document.documentElement.clientWidth ||
+    e.clientY >= document.documentElement.clientHeight;
 }
 
 document.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return; // left click only
-  if (isInputElement(e.target)) return;
+  if (isInteractiveElement(e.target)) return;
+  if (isScrollbarClick(e)) return;
   if (triggerButton?.contains(e.target)) return;
   if (typeof _getBubbleContainer === 'function') {
     const bc = _getBubbleContainer();
