@@ -32,5 +32,5 @@ Chrome extension (Manifest V3) using vanilla JS, no frameworks.
 
 - Everything through PRs — never push directly to main
 - Squash merge via `gh pr merge <n> --squash`
-- Use git worktrees when other agents may be working in the repo
+- Always use git worktrees for feature/fix branches — never work directly in the main checkout
 - Commit messages: `type: description` (feat/fix/test/ci/docs)
