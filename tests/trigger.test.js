@@ -498,6 +498,8 @@ describe('progress ring', () => {
   it('ring is removed when startScreenshotMode fires', () => {
     vi.useFakeTimers();
     createTriggerButton();
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+    Object.defineProperty(document.documentElement, 'clientHeight', { value: 768, configurable: true });
     document.dispatchEvent(new MouseEvent('mousedown', {
       button: 0, clientX: 100, clientY: 100, bubbles: true
     }));
@@ -515,6 +517,8 @@ describe('progress ring', () => {
   it('ring is removed on early mouseup', () => {
     vi.useFakeTimers();
     createTriggerButton();
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+    Object.defineProperty(document.documentElement, 'clientHeight', { value: 768, configurable: true });
     document.dispatchEvent(new MouseEvent('mousedown', {
       button: 0, clientX: 100, clientY: 100, bubbles: true
     }));
@@ -530,6 +534,8 @@ describe('progress ring', () => {
   it('ring is removed when mouse moves beyond threshold', () => {
     vi.useFakeTimers();
     createTriggerButton();
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+    Object.defineProperty(document.documentElement, 'clientHeight', { value: 768, configurable: true });
     document.dispatchEvent(new MouseEvent('mousedown', {
       button: 0, clientX: 100, clientY: 100, bubbles: true
     }));
