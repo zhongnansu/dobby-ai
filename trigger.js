@@ -284,7 +284,7 @@ function _ensureProgressRingStyles() {
   style.id = 'dobby-progress-ring-styles';
   style.textContent = `
     @keyframes dobby-ring-fill {
-      from { stroke-dashoffset: 144.5; }
+      from { stroke-dashoffset: 62.8; }
       to { stroke-dashoffset: 0; }
     }
     @keyframes dobby-icon-fade {
@@ -303,10 +303,10 @@ function _showProgressRing(x, y) {
   _removeProgressRing();
   _ensureProgressRingStyles();
 
-  const SIZE = 56;
+  const SIZE = 28;
   const HALF = SIZE / 2;
-  const RADIUS = 23;
-  const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ~144.5
+  const RADIUS = 10;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ~62.8
 
   const container = document.createElement('div');
   container.setAttribute('data-dobby-progress-ring', '');
@@ -325,14 +325,14 @@ function _showProgressRing(x, y) {
   const backdrop = document.createElement('div');
   Object.assign(backdrop.style, {
     position: 'absolute',
-    top: '6px',
-    left: '6px',
-    width: (SIZE - 12) + 'px',
-    height: (SIZE - 12) + 'px',
+    top: '3px',
+    left: '3px',
+    width: (SIZE - 6) + 'px',
+    height: (SIZE - 6) + 'px',
     borderRadius: '50%',
     background: 'rgba(245,240,255,0.92)',
-    backdropFilter: 'blur(12px)',
-    boxShadow: '0 3px 20px rgba(124,58,237,0.4), 0 0 0 1px rgba(124,58,237,0.15)',
+    backdropFilter: 'blur(8px)',
+    boxShadow: '0 2px 12px rgba(124,58,237,0.4), 0 0 0 1px rgba(124,58,237,0.15)',
   });
   container.appendChild(backdrop);
 
@@ -353,7 +353,7 @@ function _showProgressRing(x, y) {
   track.setAttribute('r', String(RADIUS));
   track.setAttribute('fill', 'none');
   track.setAttribute('stroke', 'rgba(124,58,237,0.3)');
-  track.setAttribute('stroke-width', '5');
+  track.setAttribute('stroke-width', '3');
   svg.appendChild(track);
 
   // Animated fill circle
@@ -363,20 +363,20 @@ function _showProgressRing(x, y) {
   fill.setAttribute('r', String(RADIUS));
   fill.setAttribute('fill', 'none');
   fill.setAttribute('stroke', '#7c3aed');
-  fill.setAttribute('stroke-width', '5');
+  fill.setAttribute('stroke-width', '3');
   fill.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-linecap', 'round');
   fill.style.animation = 'dobby-ring-fill 1s linear forwards';
-  fill.style.filter = 'drop-shadow(0 0 6px rgba(124,58,237,0.6))';
+  fill.style.filter = 'drop-shadow(0 0 4px rgba(124,58,237,0.6))';
   svg.appendChild(fill);
 
   container.appendChild(svg);
 
   // Camera icon (separate SVG, not rotated)
   const iconSvg = document.createElementNS(svgNS, 'svg');
-  iconSvg.setAttribute('width', '20');
-  iconSvg.setAttribute('height', '20');
+  iconSvg.setAttribute('width', '10');
+  iconSvg.setAttribute('height', '10');
   iconSvg.setAttribute('viewBox', '0 0 24 24');
   iconSvg.setAttribute('fill', 'none');
   iconSvg.setAttribute('stroke', '#7c3aed');
