@@ -27,6 +27,8 @@ const {
   _setDobbyEnabled,
   startScreenshotMode,
   cancelScreenshotMode,
+  _showProgressRing,
+  _removeProgressRing,
 } = await import('../trigger.js');
 
 beforeEach(() => {
@@ -410,5 +412,204 @@ describe('screenshot mode', () => {
     expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
     div.remove();
     vi.useRealTimers();
+  });
+});
+
+describe('progress ring', () => {
+  beforeEach(() => {
+    cancelScreenshotMode();
+    // Remove any leftover progress ring style tags
+    document.getElementById('dobby-progress-ring-styles')?.remove();
+  });
+
+  it('_showProgressRing creates an SVG element at given coordinates', () => {
+    _showProgressRing(200, 150);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    expect(ring).not.toBeNull();
+    expect(ring.style.position).toBe('fixed');
+    expect(ring.style.pointerEvents).toBe('none');
+    expect(ring.style.zIndex).toBe('2147483645');
+    _removeProgressRing();
+  });
+
+  it('_showProgressRing centers the 48px ring on the coordinates', () => {
+    _showProgressRing(200, 150);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    expect(ring.style.left).toBe('176px'); // 200 - 24
+    expect(ring.style.top).toBe('126px');  // 150 - 24
+    _removeProgressRing();
+  });
+
+  it('_showProgressRing injects CSS style tag on first call', () => {
+    expect(document.getElementById('dobby-progress-ring-styles')).toBeNull();
+    _showProgressRing(100, 100);
+    expect(document.getElementById('dobby-progress-ring-styles')).not.toBeNull();
+    _removeProgressRing();
+  });
+
+  it('_showProgressRing does not duplicate style tag on second call', () => {
+    _showProgressRing(100, 100);
+    _removeProgressRing();
+    _showProgressRing(200, 200);
+    expect(document.querySelectorAll('#dobby-progress-ring-styles').length).toBe(1);
+    _removeProgressRing();
+  });
+
+  it('_removeProgressRing removes the ring element', () => {
+    _showProgressRing(100, 100);
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    _removeProgressRing();
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+  });
+
+  it('_removeProgressRing is safe to call when no ring exists', () => {
+    expect(() => _removeProgressRing()).not.toThrow();
+  });
+
+  it('_showProgressRing removes existing ring before creating new one', () => {
+    _showProgressRing(100, 100);
+    _showProgressRing(200, 200);
+    expect(document.querySelectorAll('[data-dobby-progress-ring]').length).toBe(1);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    expect(ring.style.left).toBe('176px'); // 200 - 24
+    _removeProgressRing();
+  });
+
+  it('ring contains SVG with camera icon', () => {
+    _showProgressRing(100, 100);
+    const ring = document.querySelector('[data-dobby-progress-ring]');
+    const svg = ring.querySelector('svg');
+    expect(svg).not.toBeNull();
+    // Should have circles (track + animated) and camera icon paths
+    expect(svg.querySelectorAll('circle').length).toBeGreaterThanOrEqual(2);
+    _removeProgressRing();
+  });
+
+  it('ring does not appear when dobbyEnabled is false', () => {
+    vi.useFakeTimers();
+    _setDobbyEnabled(false);
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('ring is removed when startScreenshotMode fires', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+    Object.defineProperty(document.documentElement, 'clientHeight', { value: 768, configurable: true });
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    // Ring should be visible during the hold
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    // Advance past LONG_PRESS_DURATION to trigger startScreenshotMode
+    vi.advanceTimersByTime(1100);
+    // Ring should be removed, overlay should exist
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
+    cancelScreenshotMode();
+    vi.useRealTimers();
+  });
+
+  it('ring is removed on early mouseup', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+    Object.defineProperty(document.documentElement, 'clientHeight', { value: 768, configurable: true });
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    // Release before timer completes
+    document.dispatchEvent(new MouseEvent('mouseup', {
+      clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('ring is removed when mouse moves beyond threshold', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+    Object.defineProperty(document.documentElement, 'clientHeight', { value: 768, configurable: true });
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    // Move beyond MOVEMENT_THRESHOLD (5px)
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      clientX: 110, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    vi.useRealTimers();
+  });
+});
+
+describe('trigger tooltip', () => {
+  it('tooltip element exists after createTriggerButton', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip).not.toBeNull();
+    expect(tooltip.textContent).toContain('Hold anywhere for 1s to screenshot');
+  });
+
+  it('tooltip is initially hidden', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('0');
+    expect(tooltip.style.visibility).toBe('hidden');
+  });
+
+  it('tooltip becomes visible on mouseenter', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('1');
+    expect(tooltip.style.visibility).toBe('visible');
+  });
+
+  it('tooltip hides on mouseleave', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    btn.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('0');
+    expect(tooltip.style.visibility).toBe('hidden');
+  });
+
+  it('tooltip auto-hides after 2 seconds', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('1');
+    vi.advanceTimersByTime(2100);
+    expect(tooltip.style.opacity).toBe('0');
+    expect(tooltip.style.visibility).toBe('hidden');
+    vi.useRealTimers();
+  });
+
+  it('tooltip has pointer-events none', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.pointerEvents).toBe('none');
+  });
+
+  it('tooltip has downward caret', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    const caret = tooltip.querySelector('[data-dobby-tooltip-caret]');
+    expect(caret).not.toBeNull();
   });
 });

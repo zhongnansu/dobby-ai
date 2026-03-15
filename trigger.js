@@ -56,6 +56,65 @@ function createTriggerButton() {
   img.alt = 'Dobby AI';
   Object.assign(img.style, { width: '28px', height: '28px', display: 'block' });
   triggerButton.appendChild(img);
+
+  // Tooltip
+  const tooltip = document.createElement('div');
+  tooltip.setAttribute('data-dobby-tooltip', '');
+  tooltip.textContent = 'Hold anywhere for 1s to screenshot';
+  Object.assign(tooltip.style, {
+    position: 'absolute',
+    bottom: '100%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    marginBottom: '8px',
+    background: 'rgba(30,30,30,0.85)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    color: 'white',
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    pointerEvents: 'none',
+    opacity: '0',
+    visibility: 'hidden',
+    transition: 'opacity 0.15s ease',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+  });
+
+  // Downward caret
+  const caret = document.createElement('div');
+  caret.setAttribute('data-dobby-tooltip-caret', '');
+  Object.assign(caret.style, {
+    position: 'absolute',
+    bottom: '-6px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '0',
+    height: '0',
+    borderLeft: '6px solid transparent',
+    borderRight: '6px solid transparent',
+    borderTop: '6px solid rgba(30,30,30,0.85)',
+  });
+  tooltip.appendChild(caret);
+  triggerButton.appendChild(tooltip);
+
+  let tooltipTimer = null;
+  triggerButton.addEventListener('mouseenter', () => {
+    tooltip.style.opacity = '1';
+    tooltip.style.visibility = 'visible';
+    clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => {
+      tooltip.style.opacity = '0';
+      tooltip.style.visibility = 'hidden';
+    }, 2000);
+  });
+  triggerButton.addEventListener('mouseleave', () => {
+    tooltip.style.opacity = '0';
+    tooltip.style.visibility = 'hidden';
+    clearTimeout(tooltipTimer);
+  });
+
   Object.assign(triggerButton.style, {
     position: 'fixed',
     zIndex: '2147483647',
@@ -217,6 +276,123 @@ let screenshotStartX = 0;
 let screenshotStartY = 0;
 let screenshotRect = null;
 let screenshotDragStarted = false;
+let progressRing = null;
+
+function _ensureProgressRingStyles() {
+  if (document.getElementById('dobby-progress-ring-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'dobby-progress-ring-styles';
+  style.textContent = `
+    @keyframes dobby-ring-fill {
+      from { stroke-dashoffset: 125.6; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes dobby-icon-fade {
+      from { opacity: 0; }
+      to { opacity: 0.7; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function _showProgressRing(x, y) {
+  _removeProgressRing();
+  _ensureProgressRingStyles();
+
+  const container = document.createElement('div');
+  container.setAttribute('data-dobby-progress-ring', '');
+  Object.assign(container.style, {
+    position: 'fixed',
+    left: (x - 24) + 'px',
+    top: (y - 24) + 'px',
+    width: '48px',
+    height: '48px',
+    pointerEvents: 'none',
+    zIndex: '2147483645',
+  });
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', '48');
+  svg.setAttribute('height', '48');
+  svg.setAttribute('viewBox', '0 0 48 48');
+  svg.style.transform = 'rotate(-90deg)';
+  svg.style.filter = 'drop-shadow(0 0 3px rgba(124,58,237,0.4))';
+
+  // Background track
+  const track = document.createElementNS(svgNS, 'circle');
+  track.setAttribute('cx', '24');
+  track.setAttribute('cy', '24');
+  track.setAttribute('r', '20');
+  track.setAttribute('fill', 'none');
+  track.setAttribute('stroke', 'rgba(124,58,237,0.15)');
+  track.setAttribute('stroke-width', '3');
+  svg.appendChild(track);
+
+  // Animated fill circle
+  const fill = document.createElementNS(svgNS, 'circle');
+  fill.setAttribute('cx', '24');
+  fill.setAttribute('cy', '24');
+  fill.setAttribute('r', '20');
+  fill.setAttribute('fill', 'none');
+  fill.setAttribute('stroke', '#7c3aed');
+  fill.setAttribute('stroke-width', '3');
+  fill.setAttribute('stroke-dasharray', '125.6');
+  fill.setAttribute('stroke-dashoffset', '125.6');
+  fill.setAttribute('stroke-linecap', 'round');
+  fill.style.animation = 'dobby-ring-fill 1s linear forwards';
+  svg.appendChild(fill);
+
+  container.appendChild(svg);
+
+  // Camera icon (separate SVG, not rotated)
+  const iconSvg = document.createElementNS(svgNS, 'svg');
+  iconSvg.setAttribute('width', '18');
+  iconSvg.setAttribute('height', '18');
+  iconSvg.setAttribute('viewBox', '0 0 24 24');
+  iconSvg.setAttribute('fill', 'none');
+  iconSvg.setAttribute('stroke', '#7c3aed');
+  iconSvg.setAttribute('stroke-width', '2');
+  iconSvg.setAttribute('stroke-linecap', 'round');
+  Object.assign(iconSvg.style, {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    animation: 'dobby-icon-fade 0.8s ease forwards',
+  });
+
+  const camBody = document.createElementNS(svgNS, 'rect');
+  camBody.setAttribute('x', '2');
+  camBody.setAttribute('y', '5');
+  camBody.setAttribute('width', '20');
+  camBody.setAttribute('height', '15');
+  camBody.setAttribute('rx', '2');
+  iconSvg.appendChild(camBody);
+
+  const camLens = document.createElementNS(svgNS, 'circle');
+  camLens.setAttribute('cx', '12');
+  camLens.setAttribute('cy', '13');
+  camLens.setAttribute('r', '3');
+  iconSvg.appendChild(camLens);
+
+  const camTop = document.createElementNS(svgNS, 'path');
+  camTop.setAttribute('d', 'M8 5l1-2h6l1 2');
+  iconSvg.appendChild(camTop);
+
+  container.appendChild(iconSvg);
+  document.body.appendChild(container);
+  progressRing = container;
+}
+
+function _removeProgressRing() {
+  if (progressRing) {
+    if (progressRing.parentNode) {
+      progressRing.parentNode.removeChild(progressRing);
+    }
+    progressRing = null;
+  }
+}
 
 const INTERACTIVE_TAGS = new Set([
   'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'AUDIO', 'LABEL', 'OPTION',
@@ -249,6 +425,10 @@ document.addEventListener('mousedown', (e) => {
   longPressStartX = e.clientX;
   longPressStartY = e.clientY;
 
+  if (dobbyEnabled) {
+    _showProgressRing(e.clientX, e.clientY);
+  }
+
   longPressTimer = setTimeout(() => {
     startScreenshotMode();
   }, LONG_PRESS_DURATION);
@@ -261,6 +441,7 @@ document.addEventListener('mousemove', (e) => {
     if (dx > MOVEMENT_THRESHOLD || dy > MOVEMENT_THRESHOLD) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
+      _removeProgressRing();
     }
   }
 
@@ -283,10 +464,12 @@ document.addEventListener('mouseup', (e) => {
   if (longPressTimer) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
+    _removeProgressRing();
   }
 }, true);
 
 function startScreenshotMode() {
+  _removeProgressRing();
   longPressTimer = null;
 
   screenshotOverlay = document.createElement('div');
@@ -532,8 +715,9 @@ function _resetTriggerForTesting() {
   }
   triggerButton = null;
   dobbyEnabled = true;
+  _removeProgressRing();
 }
 
 function _setDobbyEnabled(val) { dobbyEnabled = val; }
 
-if (typeof module !== 'undefined') module.exports = { createTriggerButton, showTrigger, hideTrigger, _resetTriggerForTesting, _setDobbyEnabled, extractImagesFromSelection, startScreenshotMode, cancelScreenshotMode };
+if (typeof module !== 'undefined') module.exports = { createTriggerButton, showTrigger, hideTrigger, _resetTriggerForTesting, _setDobbyEnabled, extractImagesFromSelection, startScreenshotMode, cancelScreenshotMode, _showProgressRing, _removeProgressRing };
