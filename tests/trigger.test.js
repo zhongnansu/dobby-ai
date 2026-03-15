@@ -452,11 +452,11 @@ describe('progress ring', () => {
     _removeProgressRing();
   });
 
-  it('_showProgressRing centers the 56px ring on the coordinates', () => {
+  it('_showProgressRing centers the 28px ring on the coordinates', () => {
     _showProgressRing(200, 150);
     const ring = document.querySelector('[data-dobby-progress-ring]');
-    expect(ring.style.left).toBe('172px'); // 200 - 28
-    expect(ring.style.top).toBe('122px');  // 150 - 28
+    expect(ring.style.left).toBe('186px'); // 200 - 14
+    expect(ring.style.top).toBe('136px');  // 150 - 14
     _removeProgressRing();
   });
 
@@ -491,7 +491,7 @@ describe('progress ring', () => {
     _showProgressRing(200, 200);
     expect(document.querySelectorAll('[data-dobby-progress-ring]').length).toBe(1);
     const ring = document.querySelector('[data-dobby-progress-ring]');
-    expect(ring.style.left).toBe('172px'); // 200 - 28
+    expect(ring.style.left).toBe('186px'); // 200 - 14
     _removeProgressRing();
   });
 
