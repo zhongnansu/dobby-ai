@@ -284,12 +284,16 @@ function _ensureProgressRingStyles() {
   style.id = 'dobby-progress-ring-styles';
   style.textContent = `
     @keyframes dobby-ring-fill {
-      from { stroke-dashoffset: 125.6; }
+      from { stroke-dashoffset: 188.4; }
       to { stroke-dashoffset: 0; }
     }
     @keyframes dobby-icon-fade {
-      from { opacity: 0; }
-      to { opacity: 0.7; }
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+      to { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+    }
+    @keyframes dobby-ring-appear {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
     }
   `;
   document.head.appendChild(style);
@@ -299,56 +303,80 @@ function _showProgressRing(x, y) {
   _removeProgressRing();
   _ensureProgressRingStyles();
 
+  const SIZE = 72;
+  const HALF = SIZE / 2;
+  const RADIUS = 30;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ~188.4
+
   const container = document.createElement('div');
   container.setAttribute('data-dobby-progress-ring', '');
   Object.assign(container.style, {
     position: 'fixed',
-    left: (x - 24) + 'px',
-    top: (y - 24) + 'px',
-    width: '48px',
-    height: '48px',
+    left: (x - HALF) + 'px',
+    top: (y - HALF) + 'px',
+    width: SIZE + 'px',
+    height: SIZE + 'px',
     pointerEvents: 'none',
     zIndex: '2147483645',
+    animation: 'dobby-ring-appear 0.15s ease-out forwards',
   });
+
+  // Frosted backdrop circle
+  const backdrop = document.createElement('div');
+  Object.assign(backdrop.style, {
+    position: 'absolute',
+    top: '6px',
+    left: '6px',
+    width: (SIZE - 12) + 'px',
+    height: (SIZE - 12) + 'px',
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.85)',
+    backdropFilter: 'blur(8px)',
+    boxShadow: '0 2px 12px rgba(124,58,237,0.25)',
+  });
+  container.appendChild(backdrop);
 
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
-  svg.setAttribute('width', '48');
-  svg.setAttribute('height', '48');
-  svg.setAttribute('viewBox', '0 0 48 48');
+  svg.setAttribute('width', String(SIZE));
+  svg.setAttribute('height', String(SIZE));
+  svg.setAttribute('viewBox', `0 0 ${SIZE} ${SIZE}`);
   svg.style.transform = 'rotate(-90deg)';
-  svg.style.filter = 'drop-shadow(0 0 3px rgba(124,58,237,0.4))';
+  svg.style.position = 'absolute';
+  svg.style.top = '0';
+  svg.style.left = '0';
 
   // Background track
   const track = document.createElementNS(svgNS, 'circle');
-  track.setAttribute('cx', '24');
-  track.setAttribute('cy', '24');
-  track.setAttribute('r', '20');
+  track.setAttribute('cx', String(HALF));
+  track.setAttribute('cy', String(HALF));
+  track.setAttribute('r', String(RADIUS));
   track.setAttribute('fill', 'none');
-  track.setAttribute('stroke', 'rgba(124,58,237,0.15)');
-  track.setAttribute('stroke-width', '3');
+  track.setAttribute('stroke', 'rgba(124,58,237,0.2)');
+  track.setAttribute('stroke-width', '4');
   svg.appendChild(track);
 
   // Animated fill circle
   const fill = document.createElementNS(svgNS, 'circle');
-  fill.setAttribute('cx', '24');
-  fill.setAttribute('cy', '24');
-  fill.setAttribute('r', '20');
+  fill.setAttribute('cx', String(HALF));
+  fill.setAttribute('cy', String(HALF));
+  fill.setAttribute('r', String(RADIUS));
   fill.setAttribute('fill', 'none');
   fill.setAttribute('stroke', '#7c3aed');
-  fill.setAttribute('stroke-width', '3');
-  fill.setAttribute('stroke-dasharray', '125.6');
-  fill.setAttribute('stroke-dashoffset', '125.6');
+  fill.setAttribute('stroke-width', '4');
+  fill.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
+  fill.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-linecap', 'round');
   fill.style.animation = 'dobby-ring-fill 1s linear forwards';
+  fill.style.filter = 'drop-shadow(0 0 4px rgba(124,58,237,0.5))';
   svg.appendChild(fill);
 
   container.appendChild(svg);
 
   // Camera icon (separate SVG, not rotated)
   const iconSvg = document.createElementNS(svgNS, 'svg');
-  iconSvg.setAttribute('width', '18');
-  iconSvg.setAttribute('height', '18');
+  iconSvg.setAttribute('width', '24');
+  iconSvg.setAttribute('height', '24');
   iconSvg.setAttribute('viewBox', '0 0 24 24');
   iconSvg.setAttribute('fill', 'none');
   iconSvg.setAttribute('stroke', '#7c3aed');
@@ -359,7 +387,7 @@ function _showProgressRing(x, y) {
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    animation: 'dobby-icon-fade 0.8s ease forwards',
+    animation: 'dobby-icon-fade 0.3s ease forwards',
   });
 
   const camBody = document.createElementNS(svgNS, 'rect');
@@ -407,8 +435,19 @@ function isInteractiveElement(el) {
 }
 
 function isScrollbarClick(e) {
-  return e.clientX >= document.documentElement.clientWidth ||
-    e.clientY >= document.documentElement.clientHeight;
+  // Page-level scrollbars
+  if (e.clientX >= document.documentElement.clientWidth ||
+    e.clientY >= document.documentElement.clientHeight) return true;
+  // Element-level scrollbars (e.g. scrollable divs)
+  const el = e.target;
+  if (el && el.getBoundingClientRect) {
+    const rect = el.getBoundingClientRect();
+    const clickOffsetX = e.clientX - rect.left;
+    const clickOffsetY = e.clientY - rect.top;
+    if (el.scrollHeight > el.clientHeight && clickOffsetX > el.clientWidth) return true;
+    if (el.scrollWidth > el.clientWidth && clickOffsetY > el.clientHeight) return true;
+  }
+  return false;
 }
 
 document.addEventListener('mousedown', (e) => {

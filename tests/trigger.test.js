@@ -368,6 +368,26 @@ describe('screenshot mode', () => {
     vi.useRealTimers();
   });
 
+  it('does not start screenshot mode when clicking on element-level scrollbar', () => {
+    vi.useFakeTimers();
+    _setDobbyEnabled(true);
+    const scrollable = document.createElement('div');
+    // Make element scrollable: content taller than visible area
+    Object.defineProperty(scrollable, 'scrollHeight', { value: 500, configurable: true });
+    Object.defineProperty(scrollable, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(scrollable, 'clientWidth', { value: 280, configurable: true });
+    scrollable.getBoundingClientRect = () => ({ left: 100, top: 50, right: 400, bottom: 250, width: 300, height: 200 });
+    document.body.appendChild(scrollable);
+    // Click on the scrollbar area (offsetX 290 > clientWidth 280)
+    scrollable.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 390, clientY: 100, bubbles: true,
+    }));
+    vi.advanceTimersByTime(1100);
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+    scrollable.remove();
+    vi.useRealTimers();
+  });
+
   it('does not start screenshot mode when clicking on interactive elements', () => {
     vi.useFakeTimers();
     _setDobbyEnabled(true);
@@ -432,11 +452,11 @@ describe('progress ring', () => {
     _removeProgressRing();
   });
 
-  it('_showProgressRing centers the 48px ring on the coordinates', () => {
+  it('_showProgressRing centers the 72px ring on the coordinates', () => {
     _showProgressRing(200, 150);
     const ring = document.querySelector('[data-dobby-progress-ring]');
-    expect(ring.style.left).toBe('176px'); // 200 - 24
-    expect(ring.style.top).toBe('126px');  // 150 - 24
+    expect(ring.style.left).toBe('164px'); // 200 - 36
+    expect(ring.style.top).toBe('114px');  // 150 - 36
     _removeProgressRing();
   });
 
@@ -471,7 +491,7 @@ describe('progress ring', () => {
     _showProgressRing(200, 200);
     expect(document.querySelectorAll('[data-dobby-progress-ring]').length).toBe(1);
     const ring = document.querySelector('[data-dobby-progress-ring]');
-    expect(ring.style.left).toBe('176px'); // 200 - 24
+    expect(ring.style.left).toBe('164px'); // 200 - 36
     _removeProgressRing();
   });
 
