@@ -356,6 +356,67 @@ describe('bubble.js', () => {
     });
   });
 
+  describe('pin button', () => {
+    it('renders a pin button in the bubble header', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const pinBtn = shadow.querySelector('.pin-btn');
+      expect(pinBtn).not.toBeNull();
+      expect(pinBtn.title).toBe('Pin');
+    });
+
+    it('toggles pinned state on click', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      const pinBtn = shadow.querySelector('.pin-btn');
+
+      expect(host._isPinned).toBe(false);
+      expect(pinBtn.classList.contains('pinned')).toBe(false);
+
+      pinBtn.click();
+      expect(host._isPinned).toBe(true);
+      expect(pinBtn.classList.contains('pinned')).toBe(true);
+      expect(pinBtn.title).toBe('Unpin');
+
+      pinBtn.click();
+      expect(host._isPinned).toBe(false);
+      expect(pinBtn.classList.contains('pinned')).toBe(false);
+      expect(pinBtn.title).toBe('Pin');
+    });
+
+    it('close button still works when pinned', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      shadow.querySelector('.pin-btn').click(); // pin it
+      expect(host._isPinned).toBe(true);
+      shadow.querySelector('.close-btn').click();
+      expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
+    });
+
+    it('Escape key closes bubble when pinned', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      shadow.querySelector('.pin-btn').click(); // pin it
+      expect(host._isPinned).toBe(true);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
+    });
+
+    it('pin resets to unpinned on new bubble open', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host1 = document.querySelector('#dobby-ai-bubble');
+      host1.shadowRoot.querySelector('.pin-btn').click(); // pin it
+      expect(host1._isPinned).toBe(true);
+      // Open new bubble (replaces the old one)
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test2');
+      const host2 = document.querySelector('#dobby-ai-bubble');
+      expect(host2._isPinned).toBe(false);
+    });
+  });
+
   describe('image lightbox', () => {
     it('opens lightbox overlay when image is clicked', () => {
       showBubble({ bottom: 100, left: 50, right: 250 }, []);

@@ -146,6 +146,46 @@ describe('content.js', () => {
       expect(global.hideBubble).not.toHaveBeenCalled();
     });
 
+    it('does not call hideBubble when bubble is pinned', async () => {
+      const bubbleEl = document.createElement('div');
+      document.body.appendChild(bubbleEl);
+      const host = { _isPinned: true };
+      global._getBubbleContainer.mockReturnValue(host);
+
+      // Override contains to simulate click outside
+      host.contains = () => false;
+
+      await new Promise((r) => setTimeout(r, 150));
+
+      const outsideTarget = document.createElement('div');
+      document.body.appendChild(outsideTarget);
+
+      const event = new MouseEvent('mousedown', { bubbles: true });
+      Object.defineProperty(event, 'target', { value: outsideTarget });
+      document.dispatchEvent(event);
+
+      expect(global.hideBubble).not.toHaveBeenCalled();
+    });
+
+    it('calls hideBubble when clicking outside unpinned bubble', async () => {
+      const bubbleEl = document.createElement('div');
+      document.body.appendChild(bubbleEl);
+      const host = { _isPinned: false };
+      global._getBubbleContainer.mockReturnValue(host);
+      host.contains = () => false;
+
+      await new Promise((r) => setTimeout(r, 150));
+
+      const outsideTarget = document.createElement('div');
+      document.body.appendChild(outsideTarget);
+
+      const event = new MouseEvent('mousedown', { bubbles: true });
+      Object.defineProperty(event, 'target', { value: outsideTarget });
+      document.dispatchEvent(event);
+
+      expect(global.hideBubble).toHaveBeenCalled();
+    });
+
     it('does not call hideBubble when no bubble exists', async () => {
       global._getBubbleContainer.mockReturnValue(null);
 

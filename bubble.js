@@ -126,6 +126,21 @@ function getStyles(theme) {
       border-radius: 4px;
     }
     .close-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+    .pin-btn {
+      background: none;
+      border: none;
+      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s, transform 0.15s;
+      transform: rotate(45deg);
+    }
+    .pin-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+    .pin-btn.pinned {
+      color: #7c3aed;
+      transform: rotate(0deg);
+    }
     .selected-text-preview {
       padding: 8px 14px;
       border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
@@ -408,6 +423,11 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
     <div class="bubble-header">
       <span class="bubble-logo">\u2726 Dobby AI</span>
       <span class="bubble-status"></span>
+      <button class="pin-btn" title="Pin">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 17v5"/><path d="M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7"/><path d="M5 15h14l-1.5-4H6.5L5 15z"/>
+        </svg>
+      </button>
       <button class="close-btn" title="Close">\u2715</button>
     </div>
     ${previewHtml}
@@ -434,6 +454,14 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
 
 function wireCommonEvents(shadow) {
   shadow.querySelector('.close-btn').addEventListener('click', hideBubble);
+  const pinBtn = shadow.querySelector('.pin-btn');
+  if (pinBtn) {
+    pinBtn.addEventListener('click', () => {
+      bubbleHost._isPinned = !bubbleHost._isPinned;
+      pinBtn.classList.toggle('pinned', bubbleHost._isPinned);
+      pinBtn.title = bubbleHost._isPinned ? 'Unpin' : 'Pin';
+    });
+  }
   shadow.querySelector('.copy-btn').addEventListener('click', () => {
     navigator.clipboard.writeText(responseText).catch(() => {});
   });
@@ -529,6 +557,7 @@ function initBubble(selectionRect, selectedText, previewLabel, showPresets, imag
   responseText = '';
 
   createBubbleHost(selectionRect);
+  bubbleHost._isPinned = false;
   const shadow = bubbleHost.attachShadow({ mode: 'open' });
 
   const style = document.createElement('style');
