@@ -375,6 +375,7 @@ function startScreenshotMode() {
       border: '2px solid #7c3aed',
     });
 
+
     // Show confirmation toolbar below the selection
     _showConfirmToolbar(screenshotOverlay, banner, { x, y, width: w, height: h });
   });

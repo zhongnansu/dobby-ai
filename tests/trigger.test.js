@@ -339,6 +339,7 @@ describe('screenshot mode', () => {
     cancelScreenshotMode();
   });
 
+
   it('re-drag after reselect shows new toolbar', () => {
     startScreenshotMode();
     const overlay = document.querySelector('div[style*="crosshair"]');
