@@ -56,6 +56,65 @@ function createTriggerButton() {
   img.alt = 'Dobby AI';
   Object.assign(img.style, { width: '28px', height: '28px', display: 'block' });
   triggerButton.appendChild(img);
+
+  // Tooltip
+  const tooltip = document.createElement('div');
+  tooltip.setAttribute('data-dobby-tooltip', '');
+  tooltip.textContent = 'Hold anywhere for 1s to screenshot';
+  Object.assign(tooltip.style, {
+    position: 'absolute',
+    bottom: '100%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    marginBottom: '8px',
+    background: 'rgba(30,30,30,0.85)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    color: 'white',
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    pointerEvents: 'none',
+    opacity: '0',
+    visibility: 'hidden',
+    transition: 'opacity 0.15s ease',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+  });
+
+  // Downward caret
+  const caret = document.createElement('div');
+  caret.setAttribute('data-dobby-tooltip-caret', '');
+  Object.assign(caret.style, {
+    position: 'absolute',
+    bottom: '-6px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '0',
+    height: '0',
+    borderLeft: '6px solid transparent',
+    borderRight: '6px solid transparent',
+    borderTop: '6px solid rgba(30,30,30,0.85)',
+  });
+  tooltip.appendChild(caret);
+  triggerButton.appendChild(tooltip);
+
+  let tooltipTimer = null;
+  triggerButton.addEventListener('mouseenter', () => {
+    tooltip.style.opacity = '1';
+    tooltip.style.visibility = 'visible';
+    clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => {
+      tooltip.style.opacity = '0';
+      tooltip.style.visibility = 'hidden';
+    }, 2000);
+  });
+  triggerButton.addEventListener('mouseleave', () => {
+    tooltip.style.opacity = '0';
+    tooltip.style.visibility = 'hidden';
+    clearTimeout(tooltipTimer);
+  });
+
   Object.assign(triggerButton.style, {
     position: 'fixed',
     zIndex: '2147483647',

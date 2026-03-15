@@ -484,3 +484,68 @@ describe('progress ring', () => {
     vi.useRealTimers();
   });
 });
+
+describe('trigger tooltip', () => {
+  it('tooltip element exists after createTriggerButton', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip).not.toBeNull();
+    expect(tooltip.textContent).toContain('Hold anywhere for 1s to screenshot');
+  });
+
+  it('tooltip is initially hidden', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('0');
+    expect(tooltip.style.visibility).toBe('hidden');
+  });
+
+  it('tooltip becomes visible on mouseenter', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('1');
+    expect(tooltip.style.visibility).toBe('visible');
+  });
+
+  it('tooltip hides on mouseleave', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    btn.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('0');
+    expect(tooltip.style.visibility).toBe('hidden');
+  });
+
+  it('tooltip auto-hides after 2 seconds', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.opacity).toBe('1');
+    vi.advanceTimersByTime(2100);
+    expect(tooltip.style.opacity).toBe('0');
+    expect(tooltip.style.visibility).toBe('hidden');
+    vi.useRealTimers();
+  });
+
+  it('tooltip has pointer-events none', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    expect(tooltip.style.pointerEvents).toBe('none');
+  });
+
+  it('tooltip has downward caret', () => {
+    createTriggerButton();
+    const btn = document.getElementById('dobby-ai-trigger');
+    const tooltip = btn.querySelector('[data-dobby-tooltip]');
+    const caret = tooltip.querySelector('[data-dobby-tooltip-caret]');
+    expect(caret).not.toBeNull();
+  });
+});
