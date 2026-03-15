@@ -356,6 +356,10 @@ document.addEventListener('mousedown', (e) => {
   longPressStartX = e.clientX;
   longPressStartY = e.clientY;
 
+  if (dobbyEnabled) {
+    _showProgressRing(e.clientX, e.clientY);
+  }
+
   longPressTimer = setTimeout(() => {
     startScreenshotMode();
   }, LONG_PRESS_DURATION);
@@ -368,6 +372,7 @@ document.addEventListener('mousemove', (e) => {
     if (dx > MOVEMENT_THRESHOLD || dy > MOVEMENT_THRESHOLD) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
+      _removeProgressRing();
     }
   }
 
@@ -390,10 +395,12 @@ document.addEventListener('mouseup', (e) => {
   if (longPressTimer) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
+    _removeProgressRing();
   }
 }, true);
 
 function startScreenshotMode() {
+  _removeProgressRing();
   longPressTimer = null;
 
   screenshotOverlay = document.createElement('div');
@@ -639,6 +646,7 @@ function _resetTriggerForTesting() {
   }
   triggerButton = null;
   dobbyEnabled = true;
+  _removeProgressRing();
 }
 
 function _setDobbyEnabled(val) { dobbyEnabled = val; }

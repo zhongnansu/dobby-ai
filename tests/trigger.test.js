@@ -426,4 +426,61 @@ describe('progress ring', () => {
     expect(svg.querySelectorAll('circle').length).toBeGreaterThanOrEqual(2);
     _removeProgressRing();
   });
+
+  it('ring does not appear when dobbyEnabled is false', () => {
+    vi.useFakeTimers();
+    _setDobbyEnabled(false);
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('ring is removed when startScreenshotMode fires', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    // Ring should be visible during the hold
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    // Advance past LONG_PRESS_DURATION to trigger startScreenshotMode
+    vi.advanceTimersByTime(1100);
+    // Ring should be removed, overlay should exist
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
+    cancelScreenshotMode();
+    vi.useRealTimers();
+  });
+
+  it('ring is removed on early mouseup', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    // Release before timer completes
+    document.dispatchEvent(new MouseEvent('mouseup', {
+      clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('ring is removed when mouse moves beyond threshold', () => {
+    vi.useFakeTimers();
+    createTriggerButton();
+    document.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0, clientX: 100, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
+    // Move beyond MOVEMENT_THRESHOLD (5px)
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      clientX: 110, clientY: 100, bubbles: true
+    }));
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    vi.useRealTimers();
+  });
 });
