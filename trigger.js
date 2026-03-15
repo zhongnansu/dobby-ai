@@ -330,9 +330,9 @@ function _showProgressRing(x, y) {
     width: (SIZE - 12) + 'px',
     height: (SIZE - 12) + 'px',
     borderRadius: '50%',
-    background: 'rgba(255,255,255,0.85)',
-    backdropFilter: 'blur(8px)',
-    boxShadow: '0 2px 12px rgba(124,58,237,0.25)',
+    background: 'rgba(245,240,255,0.92)',
+    backdropFilter: 'blur(12px)',
+    boxShadow: '0 3px 20px rgba(124,58,237,0.4), 0 0 0 1px rgba(124,58,237,0.15)',
   });
   container.appendChild(backdrop);
 
@@ -352,8 +352,8 @@ function _showProgressRing(x, y) {
   track.setAttribute('cy', String(HALF));
   track.setAttribute('r', String(RADIUS));
   track.setAttribute('fill', 'none');
-  track.setAttribute('stroke', 'rgba(124,58,237,0.2)');
-  track.setAttribute('stroke-width', '4');
+  track.setAttribute('stroke', 'rgba(124,58,237,0.3)');
+  track.setAttribute('stroke-width', '5');
   svg.appendChild(track);
 
   // Animated fill circle
@@ -363,12 +363,12 @@ function _showProgressRing(x, y) {
   fill.setAttribute('r', String(RADIUS));
   fill.setAttribute('fill', 'none');
   fill.setAttribute('stroke', '#7c3aed');
-  fill.setAttribute('stroke-width', '4');
+  fill.setAttribute('stroke-width', '5');
   fill.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-linecap', 'round');
   fill.style.animation = 'dobby-ring-fill 1s linear forwards';
-  fill.style.filter = 'drop-shadow(0 0 4px rgba(124,58,237,0.5))';
+  fill.style.filter = 'drop-shadow(0 0 6px rgba(124,58,237,0.6))';
   svg.appendChild(fill);
 
   container.appendChild(svg);
