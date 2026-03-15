@@ -356,6 +356,16 @@ describe('bubble.js', () => {
     });
   });
 
+  describe('pin button', () => {
+    it('renders a pin button in the bubble header', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const pinBtn = shadow.querySelector('.pin-btn');
+      expect(pinBtn).not.toBeNull();
+      expect(pinBtn.title).toBe('Pin');
+    });
+  });
+
   describe('image lightbox', () => {
     it('opens lightbox overlay when image is clicked', () => {
       showBubble({ bottom: 100, left: 50, right: 250 }, []);
