@@ -154,7 +154,11 @@ chrome.runtime.onConnect.addListener((port) => {
       }
 
       if (!response.ok) {
-        try { port.postMessage({ type: 'error', code: response.status, message: 'Request failed' }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
+        let errBody = '';
+        try { errBody = await response.text(); } catch (e) { /* ignore */ }
+        console.error('[Dobby AI] API error:', response.status, errBody);
+        const errMsg = errBody ? `Request failed (${response.status}): ${errBody.substring(0, 200)}` : 'Request failed';
+        try { port.postMessage({ type: 'error', code: response.status, message: errMsg }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
         return;
       }
 
