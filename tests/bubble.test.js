@@ -167,13 +167,52 @@ describe('bubble.js', () => {
     });
   });
 
-  describe('copy button', () => {
-    it('copies response text to clipboard', () => {
-      navigator.clipboard = { writeText: vi.fn(() => Promise.resolve()) };
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+  describe('history preview', () => {
+    it('shows user text instead of instruction in history entry', async () => {
+      global.getHistory = vi.fn(() => Promise.resolve([
+        {
+          text: 'user selected text here',
+          instruction: 'system prompt content',
+          response: 'AI response',
+          pageTitle: 'Test Page',
+          timestamp: Date.now(),
+        },
+      ]));
+
+      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
-      container.shadowRoot.querySelector('.copy-btn').click();
-      expect(navigator.clipboard.writeText).toHaveBeenCalled();
+      const shadow = container.shadowRoot;
+
+      // Click history button to open the history panel
+      shadow.querySelector('.history-btn').click();
+
+      // Wait for async getHistory to resolve
+      await new Promise((r) => setTimeout(r, 0));
+
+      const instrDiv = shadow.querySelector('.history-instruction');
+      expect(instrDiv.textContent).toBe('user selected text here');
+    });
+
+    it('falls back to instruction when text is empty', async () => {
+      global.getHistory = vi.fn(() => Promise.resolve([
+        {
+          text: '',
+          instruction: 'system prompt content',
+          response: 'AI response',
+          pageTitle: 'Test Page',
+          timestamp: Date.now(),
+        },
+      ]));
+
+      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      const container = _getBubbleContainer();
+      const shadow = container.shadowRoot;
+
+      shadow.querySelector('.history-btn').click();
+      await new Promise((r) => setTimeout(r, 0));
+
+      const instrDiv = shadow.querySelector('.history-instruction');
+      expect(instrDiv.textContent).toBe('system prompt content');
     });
   });
 
