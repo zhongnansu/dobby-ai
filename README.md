@@ -1,36 +1,39 @@
 <p align="center">
-  <img src="icons/icon128.png" alt="Dobby AI" width="80" />
+  <img src="icons/store-icon.svg" alt="Dobby AI" width="80" />
 </p>
 
 <h1 align="center">Dobby AI</h1>
 
 <p align="center">
-  <strong>Select any text on the web and get instant AI responses — right where you are.</strong>
+  <strong>Select text or screenshot any region on the web — get instant AI answers right where you are.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/zhongnansu/ask-ai-extension/actions/workflows/ci.yml"><img src="https://github.com/zhongnansu/ask-ai-extension/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/zhongnansu/ask-ai-extension/actions/workflows/security.yml"><img src="https://github.com/zhongnansu/ask-ai-extension/actions/workflows/security.yml/badge.svg" alt="Security"></a>
-  <a href="https://github.com/zhongnansu/ask-ai-extension/actions/workflows/coverage.yml"><img src="https://github.com/zhongnansu/ask-ai-extension/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
+  <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/security.yml/badge.svg" alt="Security"></a>
+  <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
   <img src="https://img.shields.io/badge/version-2.1.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/manifest-v3-green" alt="Manifest V3">
-  <a href="https://github.com/zhongnansu/ask-ai-extension/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
+  <a href="https://github.com/zhongnansu/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
   <img src="https://img.shields.io/badge/chrome-web%20store-orange?logo=googlechrome&logoColor=white" alt="Chrome Web Store">
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
 </p>
 
 <p align="center">
-  Zero tab-switching · Inline AI responses · Smart content detection
+  Zero tab-switching · Inline AI responses · Visual intelligence · Smart content detection
 </p>
 
 ---
 
-Dobby AI is a Chrome extension that adds a floating trigger to any text selection. Pick a smart preset or type a custom prompt, and get an AI response in a frosted glass bubble — inline, without leaving the page.
+Dobby AI is a Chrome extension that brings AI directly into your browsing workflow. Select text to get instant explanations, or **long-press anywhere to screenshot a region and ask AI about what you see** — charts, diagrams, code, error messages, anything on screen. All responses appear in a frosted glass bubble right next to your selection, no tab-switching required.
 
-## Why Dobby AI?
+## What Makes Dobby AI Different?
+
+**Visual intelligence built in.** Long-press anywhere on any page for 1 second, drag to select a region, and ask AI about what you see. No copy-pasting, no screenshots to clipboard, no switching to ChatGPT.
 
 | | Dobby AI | HARPA AI | Merlin | Monica | Sider |
 |---|:---:|:---:|:---:|:---:|:---:|
+| **Screenshot & Ask AI** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Inline AI Responses** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Smart Content Detection** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Language-Aware Responses** | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -39,16 +42,26 @@ Dobby AI is a Chrome extension that adds a floating trigger to any text selectio
 
 ## Features
 
-- **Inline AI responses** — get answers in a frosted glass bubble right next to your selection, no tab-switching
-- **Streaming responses** — see the AI's answer as it's being generated, with live markdown rendering
-- **Smart content detection** — automatically detects code (JavaScript, Python, Rust, Go, SQL, Java, C/C++, Ruby, PHP), foreign languages (Japanese, Chinese, Korean, Arabic, Russian, Hindi, Thai), error logs, emails, data/tables, and math formulas — then suggests the most relevant presets
-- **Language-aware** — responds in the same language as your selected text (select Chinese text, get a Chinese response)
-- **Follow-up conversations** — ask follow-up questions within the same bubble, with full conversation history
-- **Preset prompts** — one-click actions like "Explain this JavaScript", "Debug this", "Summarize", "Translate to English"
-- **Custom instructions** — type any prompt to pair with your selected text
-- **Page context injection** — includes the page title and URL for richer AI responses
-- **Shadow DOM isolation** — the bubble UI is fully encapsulated and won't conflict with page styles
-- **Secure proxy** — requests go through an HMAC-signed, rate-limited Cloudflare Worker proxy
+### Visual Intelligence
+- **Screenshot any region** — long-press 1s anywhere, drag to select, ask AI about charts, diagrams, UI designs, error screenshots, math equations, or anything on screen
+- **Right-click any image** — ask AI about it directly via context menu
+- **Image selection** — select text that contains images and both text + images are sent to AI
+
+### Text Intelligence
+- **Inline AI responses** — frosted glass bubble right next to your selection, no tab-switching
+- **Streaming responses** — see the AI's answer as it's generated, with live markdown rendering
+- **Smart content detection** — automatically detects code, errors, math, emails, data, foreign languages and suggests relevant presets
+- **Language-aware** — responds in the same language as your selected text
+- **Follow-up conversations** — ask follow-up questions within the same bubble, with full chat history
+- **Preset prompts** — one-click actions like "Explain", "Debug", "Summarize", "Translate"
+- **Custom instructions** — type any prompt to pair with your selection
+
+### UX
+- **Pin & drag** — pin the chat bubble and drag it anywhere on the page
+- **Resize** — drag the corner handle to resize the bubble
+- **Chat history** — browse and resume past conversations
+- **Light/dark theme** — matches your OS preference
+- **Shadow DOM isolation** — bubble UI won't conflict with page styles
 
 ## Quick Start
 
@@ -59,118 +72,122 @@ Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/ask
 ### Manual Installation
 
 ```bash
-git clone https://github.com/zhongnansu/ask-ai-extension.git
+git clone https://github.com/zhongnansu/dobby-ai.git
+cd dobby-ai
+npm install
+npm run build
 ```
 
 1. Open `chrome://extensions` in Chrome
 2. Enable **Developer mode** (toggle top-right)
-3. Click **Load unpacked** → select the `ask-ai-extension` directory
-4. Go to the extension's **Options** page to set your OpenAI API key
-5. Select any text on a webpage to try it
+3. Click **Load unpacked** → select the `dist` directory
+4. Go to the extension's **Options** page to set your OpenAI API key (optional — 30 free questions/day without one)
 
 ## Usage
 
+### Text Selection
 ```
-Select text → Click "Dobby AI" → Pick a preset → AI responds inline
-```
-
-1. **Select text** on any web page (minimum 3 characters)
-2. Click the floating **"✦ Dobby AI"** trigger button
-3. **Pick a preset** (auto-suggested based on content type) or **type a custom instruction**
-4. The AI response streams into a **frosted glass bubble** right next to your selection
-5. **Ask follow-ups** — type in the bubble to continue the conversation
-
-## How It Works
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│  Content Scripts │     │  Shadow DOM      │     │  Background       │     │  Cloudflare      │
-│                  │────>│  Bubble UI       │────>│  Service Worker   │────>│  Worker Proxy    │
-│  detection.js    │     │  bubble.js       │     │  background.js    │     │  HMAC + rate     │
-│  trigger.js      │     │  presets.js      │     │  SSE streaming    │     │  limiting        │
-│  content.js      │     │  prompt.js       │     │                   │     │                   │
-└─────────────────┘     └──────────────────┘     └──────────────────┘     └──────────────────┘
+Select text → Click floating trigger → Pick a preset → AI responds inline
 ```
 
-**Smart Detection** is what sets Dobby AI apart. When you select text, `detection.js` analyzes it using heuristics — code keywords, DOM context (`<pre>`/`<code>` tags), Unicode character ranges, structural patterns — to determine the content type and suggest relevant presets:
+### Screenshot Mode
+```
+Long-press 1s → Drag to select region → Capture → AI analyzes the image
+```
+
+### Context Menu
+```
+Right-click any image → "Dobby AI" → AI describes/analyzes the image
+```
+
+## Architecture
+
+Built with vanilla JS, bundled with esbuild, no frameworks.
+
+```
+dobby-ai/
+├── src/
+│   ├── content/                    # Content script modules (bundled → dist/content.js)
+│   │   ├── index.js                # Entry point — message listeners, init
+│   │   ├── bubble/
+│   │   │   ├── core.js             # Bubble UI — init, show/hide, presets
+│   │   │   ├── stream.js           # Streaming responses, follow-up handling
+│   │   │   ├── history.js          # Chat history panel
+│   │   │   ├── markdown.js         # Markdown renderer with XSS protection
+│   │   │   └── styles.js           # CSS-in-JS styles (Shadow DOM)
+│   │   ├── trigger/
+│   │   │   ├── button.js           # Floating trigger button on text selection
+│   │   │   ├── screenshot.js       # Screenshot overlay, drag-to-select, toolbar
+│   │   │   ├── progress-ring.js    # Long-press progress ring animation
+│   │   │   └── selection.js        # Event listeners (mouseup, scroll, long-press)
+│   │   ├── shared/
+│   │   │   ├── state.js            # Centralized mutable state
+│   │   │   ├── constants.js        # Z-index, theme colors, timing values
+│   │   │   └── dom-utils.js        # DOM helpers
+│   │   ├── detection.js            # Smart content type detection engine
+│   │   ├── presets.js              # Preset prompts per content type
+│   │   ├── prompt.js               # OpenAI message format builder
+│   │   ├── api.js                  # Background service worker communication
+│   │   ├── history.js              # Chat history storage (chrome.storage)
+│   │   └── image-capture.js        # Screenshot capture, CORS refetch, downscaling
+│   ├── background/
+│   │   └── index.js                # Service worker — API relay, SSE streaming
+│   ├── popup.js                    # Toolbar popup (enable/disable toggle)
+│   └── options.js                  # Settings page (API key management)
+├── dist/                           # Built output (load this in Chrome)
+├── proxy/                          # Cloudflare Worker proxy server
+├── tests/                          # Vitest test suite (400+ tests, 88% coverage)
+├── esbuild.config.js               # Build config — src/ → dist/
+└── manifest.json                   # Chrome extension manifest (MV3)
+```
+
+## Development
+
+```bash
+npm install           # Install dependencies
+npm run build         # Build the extension → dist/
+npm run dev           # Watch mode — auto-rebuilds on file changes
+npm test              # Run tests
+npm run test:watch    # Run tests in watch mode
+```
+
+After building, load `dist/` as an unpacked extension in Chrome. With `npm run dev`, the extension auto-rebuilds on file changes — just reload the extension in Chrome to pick up changes.
+
+### Smart Detection
+
+When you select text, the detection engine analyzes it to suggest relevant presets:
 
 | Content Type | Detection | Example Presets |
 |---|---|---|
 | JavaScript | `const`, `let`, `=>`, `console.log` | "Explain this JavaScript", "Convert to TypeScript" |
 | Python | `def`, `self`, `elif`, `True/False/None` | "Explain this Python", "Add type hints" |
 | Rust | `fn`, `let mut`, `impl`, `println!` | "Explain this Rust", "Optimize" |
-| Chinese/Japanese/Korean | Unicode character ranges | "Summarize", "Explain simply", "Translate to English" |
-| Error/Stack trace | `Error:`, `Traceback`, `at file:line` | "Explain error", "Suggest fix", "Find root cause" |
+| Chinese/Japanese/Korean | Unicode character ranges | "Summarize", "Translate to English" |
+| Error/Stack trace | `Error:`, `Traceback`, `at file:line` | "Explain error", "Suggest fix" |
 | Email | `Dear`/`Hi` + `Regards`/`Best` | "Draft reply", "Summarize email" |
 | Math formula | LaTeX patterns, math operators | "Solve this", "Explain formula" |
-| Long text | >200 words | "Summarize", "Key points" |
-
-## Architecture
-
-```
-ask-ai-extension/
-├── manifest.json          # Chrome extension manifest (MV3)
-├── background.js          # Service worker — SSE streaming, context menu
-├── content.js             # Entry point — message listener
-├── detection.js           # Smart content type detection engine
-├── presets.js             # Preset prompt configurations per content type
-├── prompt.js              # Prompt construction with system messages
-├── trigger.js             # Floating "Dobby AI" trigger on text selection
-├── bubble.js              # Frosted glass bubble UI (Shadow DOM)
-├── api.js                 # API key validation
-├── history.js             # Conversation history management
-├── options.html/js        # Settings page for API key
-├── icons/                 # Extension icons (16, 48, 128 PNG)
-├── proxy/                 # Cloudflare Worker proxy server
-│   └── src/
-│       ├── index.js       # Main handler — CORS, body validation
-│       ├── validate.js    # HMAC-SHA256 request signing
-│       ├── rate-limit.js  # Sliding window + burst rate limiting
-│       └── openai.js      # OpenAI API relay
-├── tests/                 # Vitest test suite (200+ tests)
-└── .github/workflows/     # CI, coverage, security, release pipelines
-```
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Proxy server
-cd proxy && npm install && npm test
-```
+| Images | Screenshot or right-click | "Explain this image", "Extract text" |
 
 ### CI/CD
 
 | Workflow | Purpose |
 |----------|---------|
-| `ci.yml` | Tests + manifest linting on every push/PR |
-| `coverage.yml` | Code coverage reporting |
+| `ci.yml` | Build + tests + manifest linting on every push/PR |
+| `coverage.yml` | Code coverage reporting (80% threshold) |
 | `security.yml` | Security scanning |
-| `release.yml` | Build + GitHub Release + Chrome Web Store publish on `v*` tags |
-| `pr-preview.yml` | PR preview builds |
-| `permission-guard.yml` | Flags manifest permission changes |
+| `release.yml` | Build + GitHub Release + Chrome Web Store publish |
 
 ## Contributing
-
-Contributions are welcome! To get started:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/your-feature`)
 3. Write tests for your changes
-4. Ensure all tests pass (`npm test`)
+4. Run `npm run build && npm test` to verify
 5. Submit a pull request
 
 ## Privacy
 
-Dobby AI collects **zero data**. No accounts, no analytics, no cookies, no telemetry. Your selected text is sent through a secure proxy to the OpenAI API and never stored. See [PRIVACY.md](PRIVACY.md) for details.
+Dobby AI collects **zero data**. No accounts, no analytics, no cookies, no telemetry. Your selected text and screenshots are sent to the OpenAI API (directly with your key, or through a secure proxy) and never stored. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## License
 

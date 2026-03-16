@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page context injection (title + URL)
 - CI/CD workflows (tests, coverage, security, release, PR preview, permission guard)
 
-[2.1.0]: https://github.com/zhongnansu/ask-ai-extension/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/zhongnansu/ask-ai-extension/compare/v1.1.0...v2.0.0
-[1.1.0]: https://github.com/zhongnansu/ask-ai-extension/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/zhongnansu/ask-ai-extension/releases/tag/v1.0.0
+[2.1.0]: https://github.com/zhongnansu/dobby-ai/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/zhongnansu/dobby-ai/compare/v1.1.0...v2.0.0
+[1.1.0]: https://github.com/zhongnansu/dobby-ai/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/zhongnansu/dobby-ai/releases/tag/v1.0.0

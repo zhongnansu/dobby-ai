@@ -39,7 +39,7 @@ jobs:
       - name: Package extension
         run: |
           mkdir -p dist
-          zip -r dist/ask-ai-extension-${GITHUB_REF#refs/tags/}.zip \
+          zip -r dist/dobby-ai-${GITHUB_REF#refs/tags/}.zip \
             manifest.json \
             background.js \
             content.js \
@@ -53,7 +53,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/ask-ai-extension-*.zip
+          files: dist/dobby-ai-*.zip
           generate_release_notes: true
 
       - name: Publish to Chrome Web Store
@@ -76,7 +76,7 @@ jobs:
             "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "x-goog-api-version: 2" \
-            -T dist/ask-ai-extension-${GITHUB_REF#refs/tags/}.zip
+            -T dist/dobby-ai-${GITHUB_REF#refs/tags/}.zip
 
           # Publish
           curl -s -X POST \
