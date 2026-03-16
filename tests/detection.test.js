@@ -7,7 +7,7 @@ import {
   detectEmail,
   detectForeign,
   detectNaturalLanguage,
-} from '../detection.js';
+} from '../src/content/detection.js';
 
 describe('detectContentType', () => {
   // Helper: returns just the type string for backward-compat style assertions

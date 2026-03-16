@@ -1,5 +1,5 @@
 // tests/prompt.test.js
-import { buildChatMessages, buildFollowUp, MAX_TEXT_LENGTH } from '../prompt.js';
+import { buildChatMessages, buildFollowUp, MAX_TEXT_LENGTH } from '../src/content/prompt.js';
 
 const SYSTEM_MSG = {
   role: 'system',

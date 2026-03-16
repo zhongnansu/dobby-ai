@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { removeElement, isClickInsideUI, getSelectedText, getSelectionRect } = await import('../dom-utils.js');
+const { removeElement, isClickInsideUI, getSelectedText, getSelectionRect } = await import('../src/content/shared/dom-utils.js');
 
 beforeEach(() => {
   document.body.innerHTML = '';
@@ -46,22 +46,19 @@ describe('isClickInsideUI', () => {
     const bubble = document.createElement('div');
     const child = document.createElement('span');
     bubble.appendChild(child);
-    global._getBubbleContainer = vi.fn(() => bubble);
-    expect(isClickInsideUI(child)).toBe(true);
-    delete global._getBubbleContainer;
+    const getBubble = vi.fn(() => bubble);
+    expect(isClickInsideUI(child, getBubble)).toBe(true);
   });
 
   it('returns false when target is outside UI elements', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
-    global._getBubbleContainer = vi.fn(() => null);
-    expect(isClickInsideUI(el)).toBe(false);
+    const getBubble = vi.fn(() => null);
+    expect(isClickInsideUI(el, getBubble)).toBe(false);
     el.remove();
-    delete global._getBubbleContainer;
   });
 
-  it('returns false when _getBubbleContainer is not defined', () => {
-    delete global._getBubbleContainer;
+  it('returns false when getBubbleContainer is not provided', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
     expect(isClickInsideUI(el)).toBe(false);

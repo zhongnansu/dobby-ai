@@ -7,7 +7,7 @@
  * @param {Node|null} anchorNode - The DOM node where selection starts
  * @returns {{ type: string, subType: string|null, confidence: number, wordCount: number, charCount: number }}
  */
-function detectContentType(text, anchorNode) {
+export function detectContentType(text, anchorNode) {
   const charCount = text.length;
   const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
 
@@ -72,7 +72,7 @@ function detectContentType(text, anchorNode) {
 
 // ─── Code heuristics ────────────────────────────────────────────────────────
 
-function detectCodeHeuristics(text) {
+export function detectCodeHeuristics(text) {
   const hasBraces = /[{}]/.test(text);
   const hasSemicolons = /;/.test(text);
   const hasIndentation = /^\s{2,}/m.test(text);
@@ -99,7 +99,7 @@ function detectCodeHeuristics(text) {
 
 // ─── Programming language sub-type detection ────────────────────────────────
 
-function detectCodeLanguage(text) {
+export function detectCodeLanguage(text) {
   const scores = {
     javascript: 0,
     python: 0,
@@ -196,7 +196,7 @@ function detectCodeLanguage(text) {
 
 // ─── Error / stack trace detection ──────────────────────────────────────────
 
-function detectError(text) {
+export function detectError(text) {
   let signals = 0;
 
   if (/\b(Error|Exception|TypeError|ReferenceError|SyntaxError|RangeError|ValueError|KeyError|RuntimeError|NullPointerException|IndexOutOfBoundsException)\b/.test(text)) signals += 2;
@@ -216,7 +216,7 @@ function detectError(text) {
 
 // ─── Math / formula detection ───────────────────────────────────────────────
 
-function detectMath(text) {
+export function detectMath(text) {
   let signals = 0;
 
   // LaTeX patterns
@@ -245,7 +245,7 @@ function detectMath(text) {
 
 // ─── List / structured data detection ───────────────────────────────────────
 
-function detectData(text) {
+export function detectData(text) {
   let signals = 0;
 
   // JSON-like structure
@@ -281,7 +281,7 @@ function detectData(text) {
 
 // ─── Email / message detection ──────────────────────────────────────────────
 
-function detectEmail(text) {
+export function detectEmail(text) {
   let signals = 0;
 
   if (/^(Subject|From|To|Cc|Bcc|Date):\s/m.test(text)) signals += 3;
@@ -303,7 +303,7 @@ function wordCount(text) {
 
 // ─── Foreign language detection + sub-type ──────────────────────────────────
 
-function detectForeign(text) {
+export function detectForeign(text) {
   if (text.length === 0) return null;
 
   const nonLatinChars = (text.match(/[\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/g) || []).length;
@@ -314,7 +314,7 @@ function detectForeign(text) {
   return { subType, confidence };
 }
 
-function detectNaturalLanguage(text) {
+export function detectNaturalLanguage(text) {
   // Count characters in each script range
   const counts = {
     japanese: (text.match(/[\u3040-\u309F\u30A0-\u30FF]/g) || []).length,
@@ -348,20 +348,6 @@ function detectNaturalLanguage(text) {
  * @param {string} text - The selected text
  * @returns {{ type: string, subType: string|null, confidence: number, wordCount: number, charCount: number }}
  */
-function detectContent(text) {
+export function detectContent(text) {
   return detectContentType(text, null);
 }
-
-// Export for testing (no-op in browser)
-if (typeof module !== 'undefined') module.exports = {
-  detectContentType,
-  detectContent,
-  detectCodeLanguage,
-  detectCodeHeuristics,
-  detectError,
-  detectMath,
-  detectData,
-  detectEmail,
-  detectForeign,
-  detectNaturalLanguage,
-};

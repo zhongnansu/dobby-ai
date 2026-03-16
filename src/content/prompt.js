@@ -1,5 +1,5 @@
 // prompt.js — OpenAI chat message format
-const MAX_TEXT_LENGTH = 6000;
+export const MAX_TEXT_LENGTH = 6000;
 
 /**
  * Build OpenAI chat messages array from selected text and instruction.
@@ -9,7 +9,7 @@ const MAX_TEXT_LENGTH = 6000;
  * @param {Array} [images] - Optional array of {type: "image_url", image_url: {url}} objects
  * @returns {Array<{role: string, content: string|Array}>}
  */
-function buildChatMessages(selectedText, instruction, includePageContext, images) {
+export function buildChatMessages(selectedText, instruction, includePageContext, images) {
   let text = selectedText;
   if (text.length > MAX_TEXT_LENGTH) {
     text = text.substring(0, MAX_TEXT_LENGTH) + '...[truncated]';
@@ -62,8 +62,6 @@ function buildChatMessages(selectedText, instruction, includePageContext, images
  * @param {string} newQuestion
  * @returns {Array}
  */
-function buildFollowUp(existingMessages, newQuestion) {
+export function buildFollowUp(existingMessages, newQuestion) {
   return [...existingMessages, { role: 'user', content: newQuestion }];
 }
-
-if (typeof module !== 'undefined') module.exports = { buildChatMessages, buildFollowUp, MAX_TEXT_LENGTH };

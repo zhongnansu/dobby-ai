@@ -9,7 +9,7 @@
  * @param {Function} onError - Called with (code, message, data?) on error
  * @returns {{ cancel: Function }}
  */
-function requestChat(messages, onToken, onDone, onError) {
+export function requestChat(messages, onToken, onDone, onError) {
   const port = chrome.runtime.connect({ name: 'chat-stream' });
 
   port.postMessage({ type: 'CHAT_REQUEST', messages });
@@ -42,5 +42,3 @@ function requestChat(messages, onToken, onDone, onError) {
 
   return { cancel: () => port.disconnect() };
 }
-
-if (typeof module !== 'undefined') module.exports = { requestChat };

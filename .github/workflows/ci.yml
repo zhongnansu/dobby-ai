@@ -16,6 +16,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build
       - run: npm test
 
   lint-manifest:
@@ -49,21 +50,17 @@ jobs:
     needs: [test, lint-manifest]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
       - name: Package extension
         run: |
-          mkdir -p dist
-          zip -r dist/ask-ai-extension.zip \
-            manifest.json \
-            background.js \
-            content.js \
-            detection.js \
-            presets.js \
-            prompt.js \
-            trigger.js \
-            popup.js \
-            icons/
+          cd dist && zip -r ../ask-ai-extension.zip .
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ask-ai-extension
-          path: dist/ask-ai-extension.zip
+          path: ask-ai-extension.zip
