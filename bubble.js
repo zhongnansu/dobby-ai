@@ -555,6 +555,9 @@ async function showHistoryPanel(shadow) {
       responseEl.className = 'response-text';
       responseEl.innerHTML = renderMarkdown(entry.response);
       body.appendChild(responseEl);
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor hidden';
+      body.appendChild(cursor);
 
       // Show response section and hide presets
       const presetsSection = shadow.querySelector('.presets-section');
