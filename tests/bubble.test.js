@@ -2,31 +2,15 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { setupChromeMocks, setupContentScriptMocks } from './helpers.js';
 
-// Mock chrome APIs
-global.chrome = {
-  runtime: {
-    connect: vi.fn(() => ({
-      postMessage: vi.fn(),
-      onMessage: { addListener: vi.fn() },
-      onDisconnect: { addListener: vi.fn() },
-      disconnect: vi.fn(),
-    })),
-  },
-  storage: {
-    local: {
-      get: vi.fn((keys, cb) => cb({})),
-      set: vi.fn((data, cb) => { if (cb) cb(); }),
-    },
-  },
-};
+setupChromeMocks();
+setupContentScriptMocks();
 
-// Mock dependencies that share global scope
-global.requestChat = vi.fn(() => ({ cancel: vi.fn() }));
-global.saveConversation = vi.fn(() => Promise.resolve());
-global.getHistory = vi.fn(() => Promise.resolve([]));
-global.clearHistory = vi.fn(() => Promise.resolve());
-global.buildFollowUp = vi.fn((msgs, q) => [...msgs, { role: 'user', content: q }]);
+// Load shared modules as globals (mimics manifest.json content_scripts load order)
+Object.assign(globalThis, await import('../constants.js'));
+Object.assign(globalThis, await import('../dom-utils.js'));
+Object.assign(globalThis, await import('../styles.js'));
 
 const {
   showBubble,

@@ -24,7 +24,7 @@ async function captureImage(source) {
         if (sameOrigin) {
           return { type: 'image_url', image_url: { url } };
         }
-      } catch { /* invalid URL, fall through */ }
+      } catch (e) { console.warn('[Dobby AI] Invalid image URL:', url); }
 
       // Cross-origin: try CORS refetch to get base64
       const base64 = await _corsRefetch(url);
@@ -45,7 +45,8 @@ async function captureImage(source) {
     }
 
     return null;
-  } catch {
+  } catch (e) {
+    console.warn('[Dobby AI] Image capture failed:', e.message);
     return null;
   }
 }
@@ -70,7 +71,8 @@ async function captureScreenshot(rect) {
     const sized = await _downsizeBase64(cropped);
     if (sized) return { type: 'image_url', image_url: { url: sized } };
     return null;
-  } catch {
+  } catch (e) {
+    console.warn('[Dobby AI] Screenshot capture failed:', e.message);
     return null;
   }
 }
@@ -92,7 +94,8 @@ function _corsRefetch(url) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
         resolve(canvas.toDataURL('image/jpeg', 0.8));
-      } catch {
+      } catch (e) {
+        console.warn('[Dobby AI] Canvas operation failed:', e.message);
         resolve(null);
       }
     };
@@ -126,7 +129,8 @@ function _cropImage(dataUrl, rect) {
           rect.width * dpr, rect.height * dpr
         );
         resolve(canvas.toDataURL('image/jpeg', 0.8));
-      } catch {
+      } catch (e) {
+        console.warn('[Dobby AI] Canvas operation failed:', e.message);
         resolve(null);
       }
     };
@@ -167,7 +171,8 @@ function _scaleDown(dataUrl) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL('image/jpeg', 0.8));
-      } catch {
+      } catch (e) {
+        console.warn('[Dobby AI] Canvas operation failed:', e.message);
         resolve(null);
       }
     };

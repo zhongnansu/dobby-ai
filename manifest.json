@@ -14,7 +14,7 @@
   },
   "content_scripts": [{
     "matches": ["<all_urls>"],
-    "js": ["detection.js", "presets.js", "prompt.js", "history.js", "api.js", "image-capture.js", "bubble.js", "trigger.js", "content.js"]
+    "js": ["constants.js", "dom-utils.js", "detection.js", "presets.js", "prompt.js", "history.js", "api.js", "image-capture.js", "styles.js", "bubble.js", "trigger.js", "content.js"]
   }],
   "action": {
     "default_popup": "popup.html",

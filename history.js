@@ -15,6 +15,11 @@ function generateId() {
 function saveConversation(entry) {
   return new Promise((resolve) => {
     chrome.storage.local.get(['chatHistory'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[Dobby AI] Failed to read history:', chrome.runtime.lastError.message);
+        resolve();
+        return;
+      }
       const history = result.chatHistory || [];
 
       // Errata #12: null safety for missing response
@@ -50,6 +55,11 @@ function saveConversation(entry) {
 function getHistory() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['chatHistory'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[Dobby AI] Failed to read history:', chrome.runtime.lastError.message);
+        resolve([]);
+        return;
+      }
       resolve(result.chatHistory || []);
     });
   });
@@ -61,7 +71,12 @@ function getHistory() {
  */
 function clearHistory() {
   return new Promise((resolve) => {
-    chrome.storage.local.set({ chatHistory: [] }, resolve);
+    chrome.storage.local.set({ chatHistory: [] }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn('[Dobby AI] Failed to clear history:', chrome.runtime.lastError.message);
+      }
+      resolve();
+    });
   });
 }
 
