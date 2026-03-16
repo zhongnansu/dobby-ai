@@ -5,6 +5,7 @@
   "description": "Chrome extension to select text and send it to ChatGPT or Claude",
   "scripts": {
     "build": "node esbuild.config.js",
+    "dev": "node esbuild.config.js --watch",
     "test": "vitest run",
     "test:watch": "vitest"
   },
