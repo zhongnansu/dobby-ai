@@ -890,6 +890,19 @@ async function showHistoryPanel(shadow) {
       responseEl.className = 'response-text';
       responseEl.innerHTML = renderMarkdown(entry.response);
       body.appendChild(responseEl);
+
+      // Restore conversation state so follow-up works
+      currentMessages = [];
+      if (entry.instruction) currentMessages.push({ role: 'system', content: entry.instruction });
+      if (entry.text) currentMessages.push({ role: 'user', content: entry.text });
+      if (entry.response) currentMessages.push({ role: 'assistant', content: entry.response });
+      responseText = entry.response || '';
+
+      const followUpInput = shadow.querySelector('.follow-up-input');
+      if (followUpInput) {
+        followUpInput.disabled = false;
+        followUpInput.focus();
+      }
     });
     panel.appendChild(el);
   });
