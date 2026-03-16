@@ -12,7 +12,7 @@ const MAX_DOWNSCALE_ATTEMPTS = 2;
  * @param {string|HTMLImageElement} source - Image URL string or <img> element
  * @returns {Promise<{type: string, image_url: {url: string}}|null>}
  */
-async function captureImage(source) {
+export async function captureImage(source) {
   try {
     const url = typeof source === 'string' ? source : source.src;
     if (!url) return null;
@@ -57,7 +57,7 @@ async function captureImage(source) {
  * @param {{x: number, y: number, width: number, height: number}} rect
  * @returns {Promise<{type: string, image_url: {url: string}}|null>}
  */
-async function captureScreenshot(rect) {
+export async function captureScreenshot(rect) {
   try {
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
@@ -82,7 +82,7 @@ async function captureScreenshot(rect) {
  * @param {string} url
  * @returns {Promise<string|null>} base64 data URL or null
  */
-function _corsRefetch(url) {
+export function _corsRefetch(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -111,7 +111,7 @@ function _corsRefetch(url) {
  * @param {{x: number, y: number, width: number, height: number}} rect
  * @returns {Promise<string|null>}
  */
-function _cropImage(dataUrl, rect) {
+export function _cropImage(dataUrl, rect) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -145,7 +145,7 @@ function _cropImage(dataUrl, rect) {
  * @param {string} dataUrl
  * @returns {Promise<string|null>}
  */
-async function _downsizeBase64(dataUrl) {
+export async function _downsizeBase64(dataUrl) {
   // Check size (base64 portion is after the comma)
   const base64Part = dataUrl.split(',')[1] || '';
   if (base64Part.length <= MAX_BASE64_SIZE) return dataUrl;
@@ -179,8 +179,4 @@ function _scaleDown(dataUrl) {
     img.onerror = () => resolve(null);
     img.src = dataUrl;
   });
-}
-
-if (typeof module !== 'undefined') {
-  module.exports = { captureImage, captureScreenshot, _corsRefetch, _cropImage, _downsizeBase64 };
 }

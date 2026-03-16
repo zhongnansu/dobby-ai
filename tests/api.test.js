@@ -15,7 +15,7 @@ global.chrome = {
   },
 };
 
-const { requestChat } = await import('../api.js');
+const { requestChat } = await import('../src/content/api.js');
 
 describe('requestChat', () => {
   beforeEach(() => {

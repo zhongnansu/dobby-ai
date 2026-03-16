@@ -28,7 +28,7 @@ global.chrome = {
   },
 };
 
-await import('../popup.js');
+await import('../src/popup.js');
 
 const toggle = document.getElementById('enabled');
 const status = document.getElementById('status');

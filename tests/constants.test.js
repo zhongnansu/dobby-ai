@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-const { Z_INDEX, THEME, TIMING } = await import('../constants.js');
+const { Z_INDEX, THEME, TIMING } = await import('../src/content/shared/constants.js');
 
 describe('constants', () => {
   it('exports Z_INDEX with correct layer ordering', () => {

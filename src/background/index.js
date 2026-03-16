@@ -1,4 +1,4 @@
-// background.js — Dobby AI API relay + streaming hub
+// src/background/index.js — Dobby AI API relay + streaming hub
 // All API calls from content scripts route through here (MV3 cross-origin constraint)
 
 const PROXY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/chat';
@@ -50,7 +50,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // --- HMAC Signing ---
 
-async function generateSignature(messages, timestamp, secret) {
+export async function generateSignature(messages, timestamp, secret) {
   const payload = `${timestamp}${JSON.stringify(messages)}`;
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -68,7 +68,7 @@ async function generateSignature(messages, timestamp, secret) {
 
 // --- SSE Stream Parsing ---
 
-async function* parseSSEStream(reader) {
+export async function* parseSSEStream(reader) {
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -219,8 +219,3 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // async sendResponse
   }
 });
-
-// Export for testing
-if (typeof module !== 'undefined') {
-  module.exports = { parseSSEStream, generateSignature };
-}

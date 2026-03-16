@@ -36,7 +36,7 @@ global.chrome = {
 global.fetch = vi.fn();
 global.AbortController = AbortController;
 
-const mod = await import('../background.js');
+const mod = await import('../src/background/index.js');
 const { parseSSEStream, generateSignature } = mod;
 
 const clickHandler = chrome.contextMenus.onClicked.addListener.mock.calls[0][0];

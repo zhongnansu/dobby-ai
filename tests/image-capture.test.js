@@ -40,7 +40,7 @@ afterAll(() => {
   Object.defineProperty(HTMLImageElement.prototype, 'src', originalSrcDescriptor);
 });
 
-const { captureImage, captureScreenshot, _downsizeBase64, _corsRefetch } = await import('../image-capture.js');
+const { captureImage, captureScreenshot, _downsizeBase64, _corsRefetch } = await import('../src/content/image-capture.js');
 
 describe('captureImage', () => {
   it('returns null for empty string', async () => {

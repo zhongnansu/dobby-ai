@@ -34,7 +34,7 @@ global.chrome = {
   },
 };
 
-await import('../options.js');
+await import('../src/options.js');
 
 const apiKeyInput = document.getElementById('api-key-input');
 const saveBtn = document.getElementById('save-btn');

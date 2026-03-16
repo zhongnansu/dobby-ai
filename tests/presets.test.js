@@ -5,7 +5,7 @@ import {
   FOREIGN_SUBTYPE_PRESETS,
   getAllPresetsForType,
   getSuggestedPresetsForType,
-} from '../presets.js';
+} from '../src/content/presets.js';
 
 describe('PRESETS structure', () => {
   const expectedTypes = ['code', 'foreign', 'error', 'email', 'data', 'math', 'long', 'default', 'image'];

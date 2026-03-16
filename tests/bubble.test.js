@@ -2,31 +2,65 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { setupChromeMocks, setupContentScriptMocks } from './helpers.js';
+import { setupChromeMocks } from './helpers.js';
 
 setupChromeMocks();
-setupContentScriptMocks();
 
-// Load shared modules as globals (mimics manifest.json content_scripts load order)
-Object.assign(globalThis, await import('../constants.js'));
-Object.assign(globalThis, await import('../dom-utils.js'));
-Object.assign(globalThis, await import('../styles.js'));
+// Mock external dependencies that bubble modules import
+vi.mock('../src/content/api.js', () => ({
+  requestChat: vi.fn(() => ({ cancel: vi.fn() })),
+}));
+vi.mock('../src/content/history.js', () => ({
+  saveConversation: vi.fn(() => Promise.resolve()),
+  getHistory: vi.fn(() => Promise.resolve([])),
+  clearHistory: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('../src/content/prompt.js', () => ({
+  buildChatMessages: vi.fn((text, instruction) => [
+    { role: 'system', content: instruction },
+    { role: 'user', content: text },
+  ]),
+  buildFollowUp: vi.fn((msgs, q) => [...msgs, { role: 'user', content: q }]),
+}));
+vi.mock('../src/content/detection.js', () => ({
+  detectContentType: vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' })),
+}));
+vi.mock('../src/content/presets.js', () => ({
+  getSuggestedPresetsForType: vi.fn(() => [
+    { id: 'explain', label: 'Explain this', instruction: 'Explain the following' },
+  ]),
+}));
 
 const {
   showBubble,
   hideBubble,
   appendToken,
   setBubbleStatus,
-  renderMarkdown,
+  getBubbleContainer: _getBubbleContainer,
   detectTheme,
-  _getBubbleContainer,
-} = await import('../bubble.js');
+} = await import('../src/content/bubble/core.js');
+const { renderMarkdown } = await import('../src/content/bubble/markdown.js');
+
+// Import mocked modules for per-test overrides
+const historyModule = await import('../src/content/history.js');
+const promptModule = await import('../src/content/prompt.js');
+const apiModule = await import('../src/content/api.js');
 
 describe('bubble.js', () => {
   beforeEach(() => {
     hideBubble();
     document.body.innerHTML = '';
     vi.clearAllMocks();
+    // Re-set default mock implementations after clearAllMocks
+    apiModule.requestChat.mockReturnValue({ cancel: vi.fn() });
+    historyModule.saveConversation.mockReturnValue(Promise.resolve());
+    historyModule.getHistory.mockReturnValue(Promise.resolve([]));
+    historyModule.clearHistory.mockReturnValue(Promise.resolve());
+    promptModule.buildChatMessages.mockImplementation((text, instruction) => [
+      { role: 'system', content: instruction },
+      { role: 'user', content: text },
+    ]);
+    promptModule.buildFollowUp.mockImplementation((msgs, q) => [...msgs, { role: 'user', content: q }]);
   });
 
   describe('showBubble', () => {
@@ -147,13 +181,13 @@ describe('bubble.js', () => {
       input.disabled = false;
       input.value = 'tell me more';
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-      expect(global.buildFollowUp).toHaveBeenCalled();
+      expect(promptModule.buildFollowUp).toHaveBeenCalled();
     });
   });
 
   describe('history preview', () => {
     it('shows user text instead of instruction in history entry', async () => {
-      global.getHistory = vi.fn(() => Promise.resolve([
+      historyModule.getHistory.mockResolvedValue([
         {
           text: 'user selected text here',
           instruction: 'system prompt content',
@@ -161,7 +195,7 @@ describe('bubble.js', () => {
           pageTitle: 'Test Page',
           timestamp: Date.now(),
         },
-      ]));
+      ]);
 
       showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
@@ -178,7 +212,7 @@ describe('bubble.js', () => {
     });
 
     it('restores conversation state and enables follow-up on history entry click', async () => {
-      global.getHistory = vi.fn(() => Promise.resolve([
+      historyModule.getHistory.mockResolvedValue([
         {
           text: 'user selected text here',
           instruction: 'system prompt content',
@@ -186,7 +220,7 @@ describe('bubble.js', () => {
           pageTitle: 'Test Page',
           timestamp: Date.now(),
         },
-      ]));
+      ]);
 
       showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
@@ -208,7 +242,7 @@ describe('bubble.js', () => {
     });
 
     it('follow-up works after loading history entry', async () => {
-      global.getHistory = vi.fn(() => Promise.resolve([
+      historyModule.getHistory.mockResolvedValue([
         {
           text: 'user selected text here',
           instruction: 'system prompt content',
@@ -216,7 +250,7 @@ describe('bubble.js', () => {
           pageTitle: 'Test Page',
           timestamp: Date.now(),
         },
-      ]));
+      ]);
 
       showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
@@ -239,11 +273,11 @@ describe('bubble.js', () => {
       followUpInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
 
       // requestChat should have been called (streaming started)
-      expect(global.requestChat).toHaveBeenCalled();
+      expect(apiModule.requestChat).toHaveBeenCalled();
     });
 
     it('falls back to instruction when text is empty', async () => {
-      global.getHistory = vi.fn(() => Promise.resolve([
+      historyModule.getHistory.mockResolvedValue([
         {
           text: '',
           instruction: 'system prompt content',
@@ -251,7 +285,7 @@ describe('bubble.js', () => {
           pageTitle: 'Test Page',
           timestamp: Date.now(),
         },
-      ]));
+      ]);
 
       showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();

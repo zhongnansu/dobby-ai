@@ -22,7 +22,7 @@ global.chrome = {
   },
 };
 
-const { saveConversation, getHistory, clearHistory, MAX_HISTORY } = await import('../history.js');
+const { saveConversation, getHistory, clearHistory, MAX_HISTORY } = await import('../src/content/history.js');
 
 describe('history.js', () => {
   beforeEach(() => {

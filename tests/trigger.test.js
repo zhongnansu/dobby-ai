@@ -1,27 +1,35 @@
 // tests/trigger.test.js
 // @vitest-environment jsdom
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { setupContentScriptMocks, mockSelection as sharedMockSelection } from './helpers.js';
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
+import { setupChromeMocks, mockSelection as sharedMockSelection } from './helpers.js';
 
-// Load shared constants and DOM utilities as globals (trigger.js expects them in global scope)
-Object.assign(globalThis, await import('../constants.js'));
-Object.assign(globalThis, await import('../dom-utils.js'));
+// Mock the bubble module (trigger modules import from it)
+vi.mock('../src/content/bubble/core.js', () => ({
+  showBubbleWithPresets: vi.fn(),
+  showBubble: vi.fn(),
+  hideBubble: vi.fn(),
+  getBubbleContainer: vi.fn(() => null),
+}));
 
-// Mock dependencies
-setupContentScriptMocks();
+// Mock image-capture (path must match what the source modules use)
+vi.mock('../src/content/image-capture.js', () => ({
+  captureImage: vi.fn(),
+  captureScreenshot: vi.fn(),
+}));
 
-const {
-  createTriggerButton,
-  showTrigger,
-  hideTrigger,
-  _resetTriggerForTesting,
-  _setDobbyEnabled,
-  startScreenshotMode,
-  cancelScreenshotMode,
-  _showProgressRing,
-  _removeProgressRing,
-} = await import('../trigger.js');
+// Set up chrome API mocks before module imports
+setupChromeMocks();
+
+const { createTriggerButton, showTrigger, hideTrigger, extractImagesFromSelection } = await import('../src/content/trigger/button.js');
+const { startScreenshotMode, cancelScreenshotMode } = await import('../src/content/trigger/screenshot.js');
+const { _showProgressRing, _removeProgressRing } = await import('../src/content/trigger/progress-ring.js');
+const { _resetTriggerForTesting, _setDobbyEnabled, registerListeners } = await import('../src/content/trigger/selection.js');
+const { showBubbleWithPresets } = await import('../src/content/bubble/core.js');
+const { captureScreenshot } = await import('../src/content/image-capture.js');
+
+// Register event listeners once (mirrors production behavior where they register at load time)
+registerListeners();
 
 beforeEach(() => {
   _resetTriggerForTesting();
@@ -160,18 +168,34 @@ describe('event-driven behavior', () => {
     expect(img.src).toContain('data:image/svg+xml');
   });
 
-  it('clicking trigger calls showBubbleWithPresets', () => {
+  it('clicking trigger calls showBubbleWithPresets', async () => {
     createTriggerButton();
-    mockSelection('test text');
+    // Provide commonAncestorContainer so extractImagesFromSelection doesn't throw
+    const rect = { top: 100, right: 200, bottom: 120, left: 100 };
+    const container = document.createElement('div');
+    const range = {
+      getBoundingClientRect: () => rect,
+      commonAncestorContainer: container,
+      intersectsNode: () => false,
+    };
+    window.getSelection = vi.fn(() => ({
+      toString: () => 'test text',
+      anchorNode: document.body,
+      rangeCount: 1,
+      getRangeAt: () => range,
+    }));
     showTrigger(200, 100);
     const btn = document.getElementById('dobby-ai-trigger');
     btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    expect(showBubbleWithPresets).toHaveBeenCalledWith(
-      expect.objectContaining({ top: 100, bottom: 120 }),
-      'test text',
-      document.body,
-      undefined
-    );
+    // showBubbleWithPresets is called after async extractImagesFromSelection
+    await vi.waitFor(() => {
+      expect(showBubbleWithPresets).toHaveBeenCalledWith(
+        expect.objectContaining({ top: 100, bottom: 120 }),
+        'test text',
+        document.body,
+        undefined
+      );
+    });
   });
 });
 
@@ -279,7 +303,7 @@ describe('screenshot mode', () => {
   });
 
   it('capture button calls captureScreenshot and dismisses overlay', async () => {
-    global.captureScreenshot = vi.fn(() => Promise.resolve('data:image/png;base64,abc'));
+    captureScreenshot.mockResolvedValue('data:image/png;base64,abc');
     startScreenshotMode();
     const overlay = document.querySelector('div[style*="crosshair"]');
     simulateDrag(overlay, 50, 50, 200, 200);
@@ -287,10 +311,9 @@ describe('screenshot mode', () => {
     const captureBtn = toolbar.querySelectorAll('button')[0]; // first button
     captureBtn.click();
     await vi.waitFor(() => {
-      expect(global.captureScreenshot).toHaveBeenCalled();
+      expect(captureScreenshot).toHaveBeenCalled();
     });
     expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
-    delete global.captureScreenshot;
   });
 
   it('does not show toolbar for too-small drag', () => {

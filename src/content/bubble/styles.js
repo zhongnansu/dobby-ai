@@ -1,10 +1,11 @@
-// styles.js — CSS-in-JS styles for Dobby AI chat bubble (Shadow DOM)
+// src/content/bubble/styles.js — CSS-in-JS styles for Dobby AI chat bubble (Shadow DOM)
+import { THEME } from '../shared/constants.js';
 
-function getStyles(theme) {
+export function getStyles(theme) {
   const isDark = theme === 'dark';
-  const accent = typeof THEME !== 'undefined' ? THEME.ACCENT : '#7c3aed';
-  const accentLight = typeof THEME !== 'undefined' ? THEME.ACCENT_LIGHT : '#a78bfa';
-  const fontStack = typeof THEME !== 'undefined' ? THEME.FONT_STACK : '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const accent = THEME.ACCENT;
+  const accentLight = THEME.ACCENT_LIGHT;
+  const fontStack = THEME.FONT_STACK;
   return `
     :host { all: initial; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -337,5 +338,3 @@ function getStyles(theme) {
     }
   `;
 }
-
-if (typeof module !== 'undefined') module.exports = { getStyles };

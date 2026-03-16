@@ -1,6 +1,6 @@
 // history.js — Chat history storage (chrome.storage.local)
 
-const MAX_HISTORY = 100;
+export const MAX_HISTORY = 100;
 const MAX_RESPONSE_LENGTH = 2000;
 
 function generateId() {
@@ -12,7 +12,7 @@ function generateId() {
  * @param {{ text, instruction, response, pageUrl, pageTitle }} entry
  * @returns {Promise<void>}
  */
-function saveConversation(entry) {
+export function saveConversation(entry) {
   return new Promise((resolve) => {
     chrome.storage.local.get(['chatHistory'], (result) => {
       if (chrome.runtime.lastError) {
@@ -52,7 +52,7 @@ function saveConversation(entry) {
  * Get all history entries, most recent first.
  * @returns {Promise<Array>}
  */
-function getHistory() {
+export function getHistory() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['chatHistory'], (result) => {
       if (chrome.runtime.lastError) {
@@ -69,7 +69,7 @@ function getHistory() {
  * Clear all history.
  * @returns {Promise<void>}
  */
-function clearHistory() {
+export function clearHistory() {
   return new Promise((resolve) => {
     chrome.storage.local.set({ chatHistory: [] }, () => {
       if (chrome.runtime.lastError) {
@@ -79,5 +79,3 @@ function clearHistory() {
     });
   });
 }
-
-if (typeof module !== 'undefined') module.exports = { saveConversation, getHistory, clearHistory, MAX_HISTORY };

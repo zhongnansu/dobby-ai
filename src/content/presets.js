@@ -9,7 +9,7 @@
  */
 
 // Sub-type specific preset overrides for code
-const CODE_SUBTYPE_PRESETS = {
+export const CODE_SUBTYPE_PRESETS = {
   javascript: {
     suggested: [
       { label: 'Explain this JavaScript', instruction: 'Explain the following JavaScript code' },
@@ -127,7 +127,7 @@ function buildForeignPresets(language, label) {
   };
 }
 
-const FOREIGN_SUBTYPE_PRESETS = {
+export const FOREIGN_SUBTYPE_PRESETS = {
   japanese: buildForeignPresets('Japanese'),
   chinese: buildForeignPresets('Chinese'),
   korean: buildForeignPresets('Korean'),
@@ -137,7 +137,7 @@ const FOREIGN_SUBTYPE_PRESETS = {
   thai: buildForeignPresets('Thai'),
 };
 
-const PRESETS = {
+export const PRESETS = {
   code: {
     suggested: [
       { label: 'Explain code', instruction: 'Explain the following code' },
@@ -221,7 +221,7 @@ const PRESETS = {
   }
 };
 
-const COMMON_PRESETS = [
+export const COMMON_PRESETS = [
   { label: 'Summarize', instruction: 'Summarize the following' },
   { label: 'Explain', instruction: 'Explain the following' },
   { label: 'Translate', instruction: 'Translate the following to English' },
@@ -236,7 +236,7 @@ const COMMON_PRESETS = [
  * @param {string|null} subType
  * @returns {Array<{label: string, instruction: string}>}
  */
-function getSuggestedPresetsForType(contentType, subType) {
+export function getSuggestedPresetsForType(contentType, subType) {
   if (subType && contentType === 'code' && CODE_SUBTYPE_PRESETS[subType]) {
     return CODE_SUBTYPE_PRESETS[subType].suggested;
   }
@@ -253,7 +253,7 @@ function getSuggestedPresetsForType(contentType, subType) {
  * @param {string|null} [subType]
  * @returns {Array<{label: string, instruction: string}>}
  */
-function getAllPresetsForType(contentType, subType) {
+export function getAllPresetsForType(contentType, subType) {
   const suggested = getSuggestedPresetsForType(contentType, subType || null);
 
   let typeAll;
@@ -270,13 +270,3 @@ function getAllPresetsForType(contentType, subType) {
   const common = COMMON_PRESETS.filter(p => !labels.has(p.label));
   return [...typeAll, ...common];
 }
-
-// Export for testing (no-op in browser)
-if (typeof module !== 'undefined') module.exports = {
-  PRESETS,
-  COMMON_PRESETS,
-  CODE_SUBTYPE_PRESETS,
-  FOREIGN_SUBTYPE_PRESETS,
-  getAllPresetsForType,
-  getSuggestedPresetsForType,
-};

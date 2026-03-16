@@ -3,40 +3,86 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-let messageListener;
+let messageListeners = [];
 
+// Mock chrome APIs — capture message listeners
 global.chrome = {
   runtime: {
     onMessage: {
-      addListener: vi.fn((fn) => { messageListener = fn; }),
+      addListener: vi.fn((fn) => { messageListeners.push(fn); }),
     },
+  },
+  storage: {
+    local: {
+      get: vi.fn((key, cb) => cb({ dobbyEnabled: true })),
+      set: vi.fn(),
+    },
+  },
+  tabs: {
+    query: vi.fn(),
+    sendMessage: vi.fn(),
   },
 };
 
-global.showBubble = vi.fn();
-global.showBubbleWithPresets = vi.fn();
-global.hideBubble = vi.fn();
-global.buildChatMessages = vi.fn(() => [{ role: 'user', content: 'mock' }]);
-global.captureImage = vi.fn();
-global._getBubbleContainer = vi.fn();
+// Mock all modules that src/content/index.js imports
+vi.mock('../src/content/bubble/core.js', () => ({
+  showBubble: vi.fn(),
+  showBubbleWithPresets: vi.fn(),
+  hideBubble: vi.fn(),
+  getBubbleContainer: vi.fn(),
+}));
 
-await import('../content.js');
+vi.mock('../src/content/prompt.js', () => ({
+  buildChatMessages: vi.fn(() => [{ role: 'user', content: 'mock' }]),
+}));
 
-describe('content.js', () => {
+vi.mock('../src/content/image-capture.js', () => ({
+  captureImage: vi.fn(),
+}));
+
+vi.mock('../src/content/trigger/selection.js', () => ({
+  registerListeners: vi.fn(),
+}));
+
+vi.mock('../src/content/trigger/button.js', () => ({
+  hideTrigger: vi.fn(),
+}));
+
+vi.mock('../src/content/shared/state.js', () => ({
+  setDobbyEnabled: vi.fn(),
+}));
+
+const { showBubble, showBubbleWithPresets, hideBubble, getBubbleContainer } = await import('../src/content/bubble/core.js');
+const { buildChatMessages } = await import('../src/content/prompt.js');
+const { captureImage } = await import('../src/content/image-capture.js');
+
+// Import the entry point — this registers the message listeners
+await import('../src/content/index.js');
+
+// Find the SHOW_BUBBLE listener (the second one registered, after DOBBY_TOGGLE)
+function getShowBubbleListener() {
+  return messageListeners.find(fn => {
+    // Test by calling with a non-matching message to find the right one
+    return fn !== messageListeners[0]; // first is DOBBY_TOGGLE, second is SHOW_BUBBLE
+  });
+}
+
+describe('content/index.js', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('SHOW_BUBBLE with text', () => {
     it('calls buildChatMessages and showBubble with text', () => {
-      messageListener({ type: 'SHOW_BUBBLE', text: 'hello world' });
+      const listener = messageListeners[1]; // SHOW_BUBBLE listener
+      listener({ type: 'SHOW_BUBBLE', text: 'hello world' });
 
-      expect(global.buildChatMessages).toHaveBeenCalledWith(
+      expect(buildChatMessages).toHaveBeenCalledWith(
         'hello world',
         'Explain the following',
         true,
       );
-      expect(global.showBubble).toHaveBeenCalledWith(
+      expect(showBubble).toHaveBeenCalledWith(
         expect.objectContaining({ bottom: expect.any(Number), left: expect.any(Number), right: expect.any(Number) }),
         [{ role: 'user', content: 'mock' }],
         'hello world',
@@ -47,14 +93,14 @@ describe('content.js', () => {
 
   describe('SHOW_BUBBLE with image (successful capture)', () => {
     it('calls captureImage and showBubbleWithPresets', async () => {
-      global.captureImage.mockResolvedValue({ type: 'image', data: 'base64data' });
+      captureImage.mockResolvedValue({ type: 'image', data: 'base64data' });
 
-      messageListener({ type: 'SHOW_BUBBLE', image: 'https://example.com/img.png' });
+      const listener = messageListeners[1];
+      listener({ type: 'SHOW_BUBBLE', image: 'https://example.com/img.png' });
 
-      // Wait for async IIFE to settle
       await vi.waitFor(() => {
-        expect(global.captureImage).toHaveBeenCalledWith('https://example.com/img.png');
-        expect(global.showBubbleWithPresets).toHaveBeenCalledWith(
+        expect(captureImage).toHaveBeenCalledWith('https://example.com/img.png');
+        expect(showBubbleWithPresets).toHaveBeenCalledWith(
           expect.objectContaining({ bottom: expect.any(Number) }),
           '',
           null,
@@ -66,12 +112,13 @@ describe('content.js', () => {
 
   describe('SHOW_BUBBLE with image (capture fails)', () => {
     it('calls showBubble with error when captureImage returns null', async () => {
-      global.captureImage.mockResolvedValue(null);
+      captureImage.mockResolvedValue(null);
 
-      messageListener({ type: 'SHOW_BUBBLE', image: 'https://example.com/img.png' });
+      const listener = messageListeners[1];
+      listener({ type: 'SHOW_BUBBLE', image: 'https://example.com/img.png' });
 
       await vi.waitFor(() => {
-        expect(global.showBubble).toHaveBeenCalledWith(
+        expect(showBubble).toHaveBeenCalledWith(
           expect.objectContaining({ bottom: expect.any(Number) }),
           [{ role: 'user', content: "Couldn't capture this image" }],
           '',
@@ -83,11 +130,12 @@ describe('content.js', () => {
 
   describe('non-SHOW_BUBBLE messages', () => {
     it('are ignored', () => {
-      messageListener({ type: 'OTHER_TYPE' });
+      const listener = messageListeners[1];
+      listener({ type: 'OTHER_TYPE' });
 
-      expect(global.showBubble).not.toHaveBeenCalled();
-      expect(global.showBubbleWithPresets).not.toHaveBeenCalled();
-      expect(global.buildChatMessages).not.toHaveBeenCalled();
+      expect(showBubble).not.toHaveBeenCalled();
+      expect(showBubbleWithPresets).not.toHaveBeenCalled();
+      expect(buildChatMessages).not.toHaveBeenCalled();
     });
   });
 
@@ -97,7 +145,7 @@ describe('content.js', () => {
       bubbleEl.id = 'test-bubble';
       document.body.appendChild(bubbleEl);
 
-      global._getBubbleContainer.mockReturnValue(bubbleEl);
+      getBubbleContainer.mockReturnValue(bubbleEl);
 
       // The mousedown listener is registered after 100ms setTimeout
       await new Promise((r) => setTimeout(r, 150));
@@ -109,13 +157,13 @@ describe('content.js', () => {
       Object.defineProperty(event, 'target', { value: outsideTarget });
       document.dispatchEvent(event);
 
-      expect(global.hideBubble).toHaveBeenCalled();
+      expect(hideBubble).toHaveBeenCalled();
     });
 
     it('does not call hideBubble when clicking the trigger', async () => {
       const bubbleEl = document.createElement('div');
       document.body.appendChild(bubbleEl);
-      global._getBubbleContainer.mockReturnValue(bubbleEl);
+      getBubbleContainer.mockReturnValue(bubbleEl);
 
       const trigger = document.createElement('div');
       trigger.id = 'dobby-ai-trigger';
@@ -127,7 +175,7 @@ describe('content.js', () => {
       Object.defineProperty(event, 'target', { value: trigger });
       document.dispatchEvent(event);
 
-      expect(global.hideBubble).not.toHaveBeenCalled();
+      expect(hideBubble).not.toHaveBeenCalled();
     });
 
     it('does not call hideBubble when clicking inside the bubble', async () => {
@@ -135,7 +183,7 @@ describe('content.js', () => {
       const innerEl = document.createElement('span');
       bubbleEl.appendChild(innerEl);
       document.body.appendChild(bubbleEl);
-      global._getBubbleContainer.mockReturnValue(bubbleEl);
+      getBubbleContainer.mockReturnValue(bubbleEl);
 
       await new Promise((r) => setTimeout(r, 150));
 
@@ -143,17 +191,12 @@ describe('content.js', () => {
       Object.defineProperty(event, 'target', { value: innerEl });
       document.dispatchEvent(event);
 
-      expect(global.hideBubble).not.toHaveBeenCalled();
+      expect(hideBubble).not.toHaveBeenCalled();
     });
 
     it('does not call hideBubble when bubble is pinned', async () => {
-      const bubbleEl = document.createElement('div');
-      document.body.appendChild(bubbleEl);
-      const host = { _isPinned: true };
-      global._getBubbleContainer.mockReturnValue(host);
-
-      // Override contains to simulate click outside
-      host.contains = () => false;
+      const host = { _isPinned: true, contains: () => false };
+      getBubbleContainer.mockReturnValue(host);
 
       await new Promise((r) => setTimeout(r, 150));
 
@@ -164,30 +207,11 @@ describe('content.js', () => {
       Object.defineProperty(event, 'target', { value: outsideTarget });
       document.dispatchEvent(event);
 
-      expect(global.hideBubble).not.toHaveBeenCalled();
-    });
-
-    it('calls hideBubble when clicking outside unpinned bubble', async () => {
-      const bubbleEl = document.createElement('div');
-      document.body.appendChild(bubbleEl);
-      const host = { _isPinned: false };
-      global._getBubbleContainer.mockReturnValue(host);
-      host.contains = () => false;
-
-      await new Promise((r) => setTimeout(r, 150));
-
-      const outsideTarget = document.createElement('div');
-      document.body.appendChild(outsideTarget);
-
-      const event = new MouseEvent('mousedown', { bubbles: true });
-      Object.defineProperty(event, 'target', { value: outsideTarget });
-      document.dispatchEvent(event);
-
-      expect(global.hideBubble).toHaveBeenCalled();
+      expect(hideBubble).not.toHaveBeenCalled();
     });
 
     it('does not call hideBubble when no bubble exists', async () => {
-      global._getBubbleContainer.mockReturnValue(null);
+      getBubbleContainer.mockReturnValue(null);
 
       await new Promise((r) => setTimeout(r, 150));
 
@@ -198,7 +222,7 @@ describe('content.js', () => {
       Object.defineProperty(event, 'target', { value: outsideTarget });
       document.dispatchEvent(event);
 
-      expect(global.hideBubble).not.toHaveBeenCalled();
+      expect(hideBubble).not.toHaveBeenCalled();
     });
   });
 });
