@@ -24,6 +24,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'SHOW_BUBBLE') {
     const rect = {
+      top: window.innerHeight / 3 - 8,
       bottom: window.innerHeight / 3,
       left: window.innerWidth / 4,
       right: window.innerWidth * 3 / 4,

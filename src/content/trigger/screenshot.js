@@ -1,6 +1,6 @@
 // src/content/trigger/screenshot.js — Screenshot overlay and region selection
 
-import { screenshotState, longPressState } from '../shared/state.js';
+import { screenshotState, resetScreenshotState, longPressState } from '../shared/state.js';
 import { removeElement } from '../shared/dom-utils.js';
 import { Z_INDEX, THEME } from '../shared/constants.js';
 import { _removeProgressRing } from './progress-ring.js';
@@ -241,8 +241,6 @@ export function cancelScreenshotMode() {
       document.removeEventListener('keydown', screenshotState.overlay._escHandler);
     }
     removeElement(screenshotState.overlay);
-    screenshotState.overlay = null;
-    screenshotState.rect = null;
-    screenshotState.dragStarted = false;
+    resetScreenshotState();
   }
 }
