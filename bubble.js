@@ -467,7 +467,6 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
       </div>
       <div class="bubble-footer">
         <input class="follow-up-input" placeholder="Ask a follow-up..." disabled />
-        <button class="action-btn copy-btn" title="Copy">\ud83d\udccb</button>
         <button class="action-btn history-btn" title="History">\ud83d\udd50</button>
       </div>
     </div>
@@ -534,10 +533,6 @@ function wireCommonEvents(shadow) {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
-  });
-  shadow.querySelector('.copy-btn').addEventListener('click', () => {
-    const allText = shadow.querySelector('.response-text').innerText;
-    navigator.clipboard.writeText(allText).catch(() => {});
   });
   shadow.querySelector('.history-btn').addEventListener('click', () => {
     showHistoryPanel(shadow);
@@ -883,7 +878,7 @@ async function showHistoryPanel(shadow) {
     const timeAgo = getTimeAgo(entry.timestamp);
     const instrDiv = document.createElement('div');
     instrDiv.className = 'history-instruction';
-    instrDiv.textContent = entry.instruction || entry.text.substring(0, 60);
+    instrDiv.textContent = entry.text ? entry.text.substring(0, 60) : (entry.instruction || '').substring(0, 60);
     const metaDiv = document.createElement('div');
     metaDiv.className = 'history-meta';
     metaDiv.textContent = `${entry.pageTitle || 'Unknown page'} \u00b7 ${timeAgo}`;
