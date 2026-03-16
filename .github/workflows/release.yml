@@ -19,7 +19,6 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
-      - run: npm test
 
       - name: Validate version matches tag
         run: |
@@ -36,24 +35,19 @@ jobs:
           fi
           echo "Version $TAG_VERSION validated"
 
+      - name: Build extension
+        run: npm run build
+
+      - run: npm test
+
       - name: Package extension
         run: |
-          mkdir -p dist
-          zip -r dist/dobby-ai-${GITHUB_REF#refs/tags/}.zip \
-            manifest.json \
-            background.js \
-            content.js \
-            detection.js \
-            presets.js \
-            prompt.js \
-            trigger.js \
-            popup.js \
-            icons/
+          cd dist && zip -r ../dobby-ai-${GITHUB_REF#refs/tags/}.zip .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/dobby-ai-*.zip
+          files: dobby-ai-*.zip
           generate_release_notes: true
 
       - name: Publish to Chrome Web Store
@@ -72,16 +66,16 @@ jobs:
             -d "grant_type=refresh_token" | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).access_token))")
 
           # Upload zip
-          curl -s -X PUT \
+          UPLOAD_RESULT=$(curl -s -X PUT \
             "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "x-goog-api-version: 2" \
-            -T dist/dobby-ai-${GITHUB_REF#refs/tags/}.zip
+            -T dobby-ai-${GITHUB_REF#refs/tags/}.zip)
+          echo "Upload result: $UPLOAD_RESULT"
 
           # Publish
-          curl -s -X POST \
+          PUBLISH_RESULT=$(curl -s -X POST \
             "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "x-goog-api-version: 2"
-
-          echo "Published to Chrome Web Store"
+            -H "x-goog-api-version: 2")
+          echo "Publish result: $PUBLISH_RESULT"
