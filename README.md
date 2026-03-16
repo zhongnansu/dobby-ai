@@ -12,7 +12,7 @@
   <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/security.yml/badge.svg" alt="Security"></a>
   <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
-  <img src="https://img.shields.io/badge/version-2.1.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/manifest-v3-green" alt="Manifest V3">
   <a href="https://github.com/zhongnansu/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
   <img src="https://img.shields.io/badge/chrome-web%20store-orange?logo=googlechrome&logoColor=white" alt="Chrome Web Store">
