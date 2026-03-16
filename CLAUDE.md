@@ -35,6 +35,6 @@ Chrome extension (Manifest V3) using vanilla JS, no frameworks.
 - Always use git worktrees for feature/fix branches — never work directly in the main checkout
 - Commit messages: `type: description` (feat/fix/test/ci/docs)
 - UI/UX PRs must include a demo GIF in the description
-  - Record via Claude-in-Chrome `gif_creator`, compress with ffmpeg (800px, fps=5)
-  - Push to `docs/pr-demo-gifs` branch (non-LFS), reference via `raw.githubusercontent.com` URL
+  - Record via Playwright: `node scripts/record-demo.js demos/<scenario>.js /tmp/output.gif --framerate 5`
+  - Push to `docs/pr-demo-gifs` branch (non-LFS, <800KB), reference via `raw.githubusercontent.com` URL
   - Do NOT use Git LFS — raw URLs serve pointer files instead of actual content
