@@ -193,6 +193,36 @@ describe('bubble.js', () => {
       expect(instrDiv.textContent).toBe('user selected text here');
     });
 
+    it('restores conversation state and enables follow-up on history entry click', async () => {
+      global.getHistory = vi.fn(() => Promise.resolve([
+        {
+          text: 'user selected text here',
+          instruction: 'system prompt content',
+          response: 'AI response',
+          pageTitle: 'Test Page',
+          timestamp: Date.now(),
+        },
+      ]));
+
+      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      const container = _getBubbleContainer();
+      const shadow = container.shadowRoot;
+
+      shadow.querySelector('.history-btn').click();
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Click the history entry
+      shadow.querySelector('.history-entry').click();
+
+      // Follow-up input should be enabled
+      const followUpInput = shadow.querySelector('.follow-up-input');
+      expect(followUpInput.disabled).toBe(false);
+
+      // Response should be rendered
+      const responseText = shadow.querySelector('.response-text');
+      expect(responseText.innerHTML).toContain('AI response');
+    });
+
     it('falls back to instruction when text is empty', async () => {
       global.getHistory = vi.fn(() => Promise.resolve([
         {
