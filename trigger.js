@@ -182,8 +182,7 @@ document.addEventListener('mouseup', (e) => {
   const cursorX = e.clientX;
   const cursorY = e.clientY;
   setTimeout(() => {
-    const selection = window.getSelection();
-    const text = selection.toString().trim();
+    const text = getSelectedText();
 
     if (text.length >= 3 && dobbyEnabled) {
       showTrigger(cursorX, cursorY);
@@ -198,13 +197,12 @@ let selectionChangeTimer = null;
 document.addEventListener('selectionchange', () => {
   clearTimeout(selectionChangeTimer);
   selectionChangeTimer = setTimeout(() => {
+    const text = getSelectedText();
     const selection = window.getSelection();
-    const text = selection.toString().trim();
     if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
       // Only show if trigger isn't already visible
       if (!triggerButton || triggerButton.style.display === 'none') {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+        const rect = getSelectionRect();
         showTrigger(rect.right, rect.bottom);
       }
     }
@@ -217,11 +215,10 @@ window.addEventListener('scroll', () => {
   hideTrigger();
   clearTimeout(scrollTimer);
   scrollTimer = setTimeout(() => {
+    const text = getSelectedText();
     const selection = window.getSelection();
-    const text = selection.toString().trim();
     if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
+      const rect = getSelectionRect();
       showTrigger(rect.right, rect.top);
     }
   }, TIMING.SCROLL_DEBOUNCE);
@@ -530,7 +527,7 @@ function startScreenshotMode() {
     padding: '10px 24px',
     borderRadius: '8px',
     fontSize: '14px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: THEME.FONT_STACK,
     fontWeight: '500',
     zIndex: String(Z_INDEX.TRIGGER),
     pointerEvents: 'none',
@@ -652,7 +649,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
     borderRadius: '6px',
     padding: '8px 16px',
     fontSize: '13px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: THEME.FONT_STACK,
     fontWeight: '500',
     cursor: 'pointer',
     boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
@@ -748,8 +745,12 @@ function _resetTriggerForTesting() {
   removeElement(triggerButton);
   triggerButton = null;
   dobbyEnabled = true;
+  if (longPressState.timer) { clearTimeout(longPressState.timer); longPressState.timer = null; }
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
+  longPressState.startX = 0;
+  longPressState.startY = 0;
   _removeProgressRing();
+  cancelScreenshotMode();
 }
 
 function _setDobbyEnabled(val) { dobbyEnabled = val; }

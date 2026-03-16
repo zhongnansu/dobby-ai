@@ -2,31 +2,14 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { setupContentScriptMocks, mockSelection as sharedMockSelection } from './helpers.js';
 
 // Load shared constants and DOM utilities as globals (trigger.js expects them in global scope)
-const { Z_INDEX, THEME, TIMING } = await import('../constants.js');
-const { removeElement, isClickInsideUI } = await import('../dom-utils.js');
-global.Z_INDEX = Z_INDEX;
-global.THEME = THEME;
-global.TIMING = TIMING;
-global.removeElement = removeElement;
-global.isClickInsideUI = isClickInsideUI;
+Object.assign(globalThis, await import('../constants.js'));
+Object.assign(globalThis, await import('../dom-utils.js'));
 
 // Mock dependencies
-global.detectContentType = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
-global.detectContent = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
-global.getSuggestedPresetsForType = vi.fn(() => [
-  { id: 'explain', label: 'Explain this', instruction: 'Explain the following' },
-  { id: 'summarize', label: 'Summarize', instruction: 'Summarize the following' },
-]);
-global.buildChatMessages = vi.fn((text, instruction) => [
-  { role: 'system', content: instruction },
-  { role: 'user', content: text },
-]);
-global.showBubble = vi.fn();
-global.showBubbleWithPresets = vi.fn();
-global.hideBubble = vi.fn();
-global._getBubbleContainer = vi.fn(() => null);
+setupContentScriptMocks();
 
 const {
   createTriggerButton,
@@ -116,13 +99,7 @@ describe('hideTrigger', () => {
 
 describe('event-driven behavior', () => {
   function mockSelection(text) {
-    const range = { getBoundingClientRect: () => ({ top: 100, right: 200, bottom: 120, left: 100 }) };
-    window.getSelection = vi.fn(() => ({
-      toString: () => text,
-      anchorNode: document.body,
-      rangeCount: 1,
-      getRangeAt: () => range,
-    }));
+    sharedMockSelection(text);
   }
 
   it('mouseup with selection >= 3 chars shows trigger', () => {

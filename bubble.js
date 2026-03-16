@@ -85,7 +85,7 @@ function createBubbleHost(selectionRect) {
     : preferredTop;
   Object.assign(bubbleHost.style, {
     position: 'fixed',
-    zIndex: '2147483647',
+    zIndex: String(Z_INDEX.BUBBLE),
     left: `${Math.max(8, (selectionRect.left + selectionRect.right) / 2 - 190)}px`,
     top: `${top}px`,
   });
@@ -423,7 +423,7 @@ function startStreaming(shadow, messages) {
           aiMsg.innerHTML = renderMarkdown(responseText);
           const body = shadow.querySelector('.bubble-body');
           body.scrollTop = body.scrollHeight;
-        }, 50);
+        }, TIMING.RENDER_DEBOUNCE);
       }
     },
     (usageInfo) => {
@@ -637,7 +637,7 @@ function hideBubble() {
       bubbleHost._resizeCleanup();
     }
     if (bubbleHost._escHandler) document.removeEventListener('keydown', bubbleHost._escHandler);
-    if (bubbleHost.parentNode) bubbleHost.parentNode.removeChild(bubbleHost);
+    removeElement(bubbleHost);
   }
   bubbleHost = null;
   currentMessages = [];

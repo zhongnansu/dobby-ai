@@ -2,12 +2,15 @@
 
 function getStyles(theme) {
   const isDark = theme === 'dark';
+  const accent = typeof THEME !== 'undefined' ? THEME.ACCENT : '#7c3aed';
+  const accentLight = typeof THEME !== 'undefined' ? THEME.ACCENT_LIGHT : '#a78bfa';
+  const fontStack = typeof THEME !== 'undefined' ? THEME.FONT_STACK : '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   return `
     :host { all: initial; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .bubble {
       position: relative;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: ${fontStack};
       width: 380px;
       max-height: 420px;
       border-radius: 16px;
@@ -36,7 +39,7 @@ function getStyles(theme) {
     .bubble-logo {
       font-weight: 700;
       font-size: 14px;
-      color: ${isDark ? '#a78bfa' : '#7c3aed'};
+      color: ${isDark ? accentLight : accent};
     }
     .bubble-status {
       font-size: 12px;
@@ -65,7 +68,7 @@ function getStyles(theme) {
     }
     .pin-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
     .pin-btn.pinned {
-      color: #7c3aed;
+      color: ${accent};
       transform: rotate(0deg);
     }
     .selected-text-preview {
@@ -82,7 +85,7 @@ function getStyles(theme) {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: ${isDark ? '#a78bfa' : '#7c3aed'};
+      color: ${isDark ? accentLight : accent};
       margin-bottom: 2px;
     }
     .selected-text-preview .text {
@@ -105,7 +108,7 @@ function getStyles(theme) {
     }
     .message-user {
       align-self: flex-end;
-      background: #7c3aed;
+      background: ${accent};
       color: #fff;
       padding: 6px 12px;
       border-radius: 12px 12px 2px 12px;
@@ -180,7 +183,7 @@ function getStyles(theme) {
       display: inline-block;
       width: 2px;
       height: 14px;
-      background: ${isDark ? '#a78bfa' : '#7c3aed'};
+      background: ${isDark ? accentLight : accent};
       margin-left: 2px;
       vertical-align: text-bottom;
     }
@@ -206,7 +209,7 @@ function getStyles(theme) {
       font-family: inherit;
     }
     .follow-up-input:focus {
-      border-color: ${isDark ? '#a78bfa' : '#7c3aed'};
+      border-color: ${isDark ? accentLight : accent};
     }
     .follow-up-input::placeholder {
       color: ${isDark ? '#71717a' : '#a1a1aa'};
@@ -226,7 +229,7 @@ function getStyles(theme) {
       padding: 8px 0;
     }
     .retry-btn {
-      background: ${isDark ? '#a78bfa' : '#7c3aed'};
+      background: ${isDark ? accentLight : accent};
       color: white;
       border: none;
       padding: 4px 12px;
@@ -242,7 +245,7 @@ function getStyles(theme) {
     .rate-limit-msg .cta {
       display: inline-block;
       margin-top: 8px;
-      color: ${isDark ? '#a78bfa' : '#7c3aed'};
+      color: ${isDark ? accentLight : accent};
       cursor: pointer;
       text-decoration: underline;
     }
@@ -280,11 +283,11 @@ function getStyles(theme) {
       color: ${isDark ? '#e4e4e7' : '#18181b'};
       font-family: inherit;
     }
-    .preset-input:focus { border-color: ${isDark ? '#a78bfa' : '#7c3aed'}; }
+    .preset-input:focus { border-color: ${isDark ? accentLight : accent}; }
     .preset-input::placeholder { color: ${isDark ? '#71717a' : '#a1a1aa'}; }
     .detection-badge {
       font-size: 10px;
-      color: ${isDark ? '#a78bfa' : '#7c3aed'};
+      color: ${isDark ? accentLight : accent};
       font-weight: 500;
       padding: 0 0 4px;
     }
