@@ -883,7 +883,7 @@ async function showHistoryPanel(shadow) {
     const timeAgo = getTimeAgo(entry.timestamp);
     const instrDiv = document.createElement('div');
     instrDiv.className = 'history-instruction';
-    instrDiv.textContent = entry.instruction || entry.text.substring(0, 60);
+    instrDiv.textContent = entry.text ? entry.text.substring(0, 60) : (entry.instruction || '').substring(0, 60);
     const metaDiv = document.createElement('div');
     metaDiv.className = 'history-meta';
     metaDiv.textContent = `${entry.pageTitle || 'Unknown page'} \u00b7 ${timeAgo}`;
