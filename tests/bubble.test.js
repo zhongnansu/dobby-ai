@@ -417,6 +417,90 @@ describe('bubble.js', () => {
     });
   });
 
+  describe('draggable when pinned', () => {
+    it('header has draggable class when pinned', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      const header = shadow.querySelector('.bubble-header');
+      const pinBtn = shadow.querySelector('.pin-btn');
+
+      expect(header.classList.contains('draggable')).toBe(false);
+      pinBtn.click();
+      expect(header.classList.contains('draggable')).toBe(true);
+      pinBtn.click(); // unpin
+      expect(header.classList.contains('draggable')).toBe(false);
+    });
+
+    it('header is not draggable when unpinned', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
+      const header = shadow.querySelector('.bubble-header');
+
+      // Try to drag — should not move
+      const host = document.querySelector('#dobby-ai-bubble');
+      const initialLeft = host.style.left;
+
+      header.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(host.style.left).toBe(initialLeft);
+    });
+
+    it('moves bubble when dragging header while pinned', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      const pinBtn = shadow.querySelector('.pin-btn');
+      const header = shadow.querySelector('.bubble-header');
+
+      pinBtn.click(); // pin it
+
+      const initialLeft = parseInt(host.style.left);
+      const initialTop = parseInt(host.style.top);
+
+      header.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 250, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(parseInt(host.style.left)).toBe(initialLeft + 100);
+      expect(parseInt(host.style.top)).toBe(initialTop + 150);
+    });
+
+    it('stops dragging on mouseup', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      shadow.querySelector('.pin-btn').click();
+      const header = shadow.querySelector('.bubble-header');
+
+      header.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      const leftAfterDrop = host.style.left;
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 300, bubbles: true }));
+      expect(host.style.left).toBe(leftAfterDrop);
+    });
+
+    it('does not drag when clicking pin button', () => {
+      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+      const host = document.querySelector('#dobby-ai-bubble');
+      const shadow = host.shadowRoot;
+      const pinBtn = shadow.querySelector('.pin-btn');
+      pinBtn.click(); // pin it
+
+      const initialLeft = host.style.left;
+      // mousedown on pin button should not start drag
+      pinBtn.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(host.style.left).toBe(initialLeft);
+    });
+  });
+
   describe('image lightbox', () => {
     it('opens lightbox overlay when image is clicked', () => {
       showBubble({ bottom: 100, left: 50, right: 250 }, []);
