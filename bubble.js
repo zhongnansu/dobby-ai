@@ -399,6 +399,12 @@ function getStyles(theme) {
     .resize-handle:hover svg {
       opacity: 0.8;
     }
+    .bubble-header.draggable {
+      cursor: grab;
+    }
+    .bubble-header.dragging {
+      cursor: grabbing;
+    }
   `;
 }
 
@@ -477,13 +483,58 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
 function wireCommonEvents(shadow) {
   shadow.querySelector('.close-btn').addEventListener('click', hideBubble);
   const pinBtn = shadow.querySelector('.pin-btn');
+  const header = shadow.querySelector('.bubble-header');
+
+  const updateDraggable = () => {
+    header.classList.toggle('draggable', bubbleHost._isPinned);
+  };
+
   if (pinBtn) {
     pinBtn.addEventListener('click', () => {
       bubbleHost._isPinned = !bubbleHost._isPinned;
       pinBtn.classList.toggle('pinned', bubbleHost._isPinned);
       pinBtn.title = bubbleHost._isPinned ? 'Unpin' : 'Pin';
+      updateDraggable();
     });
   }
+
+  // Drag-by-header when pinned
+  header.addEventListener('mousedown', (e) => {
+    if (!bubbleHost._isPinned) return;
+    // Don't drag when clicking buttons inside header
+    if (e.target.closest && e.target.closest('.pin-btn, .close-btn')) return;
+
+    e.preventDefault();
+    header.classList.add('dragging');
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLeft = parseInt(bubbleHost.style.left) || 0;
+    const startTop = parseInt(bubbleHost.style.top) || 0;
+
+    const onMouseMove = (moveEvent) => {
+      moveEvent.preventDefault();
+      const newLeft = startLeft + moveEvent.clientX - startX;
+      const newTop = startTop + moveEvent.clientY - startY;
+      bubbleHost.style.left = newLeft + 'px';
+      bubbleHost.style.top = newTop + 'px';
+    };
+
+    const onMouseUp = () => {
+      header.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    // Store cleanup for hideBubble
+    bubbleHost._dragCleanup = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  });
   shadow.querySelector('.copy-btn').addEventListener('click', () => {
     const allText = shadow.querySelector('.response-text').innerText;
     navigator.clipboard.writeText(allText).catch(() => {});
@@ -900,6 +951,9 @@ function hideBubble() {
     currentRequest = null;
   }
   if (bubbleHost) {
+    if (bubbleHost._dragCleanup) {
+      bubbleHost._dragCleanup();
+    }
     if (bubbleHost._resizeCleanup) {
       bubbleHost._resizeCleanup();
     }
