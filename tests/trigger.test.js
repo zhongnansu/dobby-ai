@@ -523,10 +523,13 @@ describe('progress ring', () => {
     document.dispatchEvent(new MouseEvent('mousedown', {
       button: 0, clientX: 100, clientY: 100, bubbles: true
     }));
-    // Ring should be visible during the hold
+    // Ring should not appear immediately (500ms delay)
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    // Advance past the 500ms delay — ring should now be visible
+    vi.advanceTimersByTime(500);
     expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
     // Advance past LONG_PRESS_DURATION to trigger startScreenshotMode
-    vi.advanceTimersByTime(1100);
+    vi.advanceTimersByTime(600);
     // Ring should be removed, overlay should exist
     expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
     expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
@@ -542,8 +545,10 @@ describe('progress ring', () => {
     document.dispatchEvent(new MouseEvent('mousedown', {
       button: 0, clientX: 100, clientY: 100, bubbles: true
     }));
+    // Advance past delay so ring appears
+    vi.advanceTimersByTime(500);
     expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
-    // Release before timer completes
+    // Release before long-press completes
     document.dispatchEvent(new MouseEvent('mouseup', {
       clientX: 100, clientY: 100, bubbles: true
     }));
@@ -559,6 +564,8 @@ describe('progress ring', () => {
     document.dispatchEvent(new MouseEvent('mousedown', {
       button: 0, clientX: 100, clientY: 100, bubbles: true
     }));
+    // Advance past delay so ring appears
+    vi.advanceTimersByTime(500);
     expect(document.querySelector('[data-dobby-progress-ring]')).not.toBeNull();
     // Move beyond MOVEMENT_THRESHOLD (5px)
     document.dispatchEvent(new MouseEvent('mousemove', {

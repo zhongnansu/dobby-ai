@@ -277,6 +277,8 @@ let screenshotStartY = 0;
 let screenshotRect = null;
 let screenshotDragStarted = false;
 let progressRing = null;
+let progressRingTimer = null;
+const PROGRESS_RING_DELAY = 500;
 
 function _ensureProgressRingStyles() {
   if (document.getElementById('dobby-progress-ring-styles')) return;
@@ -367,7 +369,7 @@ function _showProgressRing(x, y) {
   fill.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-linecap', 'round');
-  fill.style.animation = 'dobby-ring-fill 1s linear forwards';
+  fill.style.animation = 'dobby-ring-fill 0.5s linear forwards';
   fill.style.filter = 'drop-shadow(0 0 4px rgba(124,58,237,0.6))';
   svg.appendChild(fill);
 
@@ -466,7 +468,10 @@ document.addEventListener('mousedown', (e) => {
   longPressStartX = e.clientX;
   longPressStartY = e.clientY;
 
-  _showProgressRing(e.clientX, e.clientY);
+  progressRingTimer = setTimeout(() => {
+    progressRingTimer = null;
+    _showProgressRing(e.clientX, e.clientY);
+  }, PROGRESS_RING_DELAY);
 
   longPressTimer = setTimeout(() => {
     startScreenshotMode();
@@ -480,6 +485,7 @@ document.addEventListener('mousemove', (e) => {
     if (dx > MOVEMENT_THRESHOLD || dy > MOVEMENT_THRESHOLD) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
+      if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
       _removeProgressRing();
     }
   }
@@ -503,6 +509,7 @@ document.addEventListener('mouseup', (e) => {
   if (longPressTimer) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
+    if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
     _removeProgressRing();
   }
 }, true);
