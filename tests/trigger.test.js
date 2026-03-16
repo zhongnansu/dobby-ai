@@ -3,6 +3,15 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+// Load shared constants and DOM utilities as globals (trigger.js expects them in global scope)
+const { Z_INDEX, THEME, TIMING } = await import('../constants.js');
+const { removeElement, isClickInsideUI } = await import('../dom-utils.js');
+global.Z_INDEX = Z_INDEX;
+global.THEME = THEME;
+global.TIMING = TIMING;
+global.removeElement = removeElement;
+global.isClickInsideUI = isClickInsideUI;
+
 // Mock dependencies
 global.detectContentType = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
 global.detectContent = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));

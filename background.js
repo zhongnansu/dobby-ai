@@ -88,8 +88,8 @@ async function* parseSSEStream(reader) {
           const parsed = JSON.parse(data);
           const token = parsed.choices?.[0]?.delta?.content;
           if (token) yield token;
-        } catch {
-          // skip malformed JSON
+        } catch (e) {
+          console.warn('[Dobby AI] Skipping malformed SSE JSON:', data);
         }
       }
     }
@@ -148,13 +148,13 @@ chrome.runtime.onConnect.addListener((port) => {
 
       if (response.status === 429) {
         let data;
-        try { data = await response.json(); } catch { data = { remaining: 0 }; }
-        try { port.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt }); } catch {}
+        try { data = await response.json(); } catch (e) { console.warn('[Dobby AI] Failed to parse rate limit response'); data = { remaining: 0 }; }
+        try { port.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
         return;
       }
 
       if (!response.ok) {
-        try { port.postMessage({ type: 'error', code: response.status, message: 'Request failed' }); } catch {}
+        try { port.postMessage({ type: 'error', code: response.status, message: 'Request failed' }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
         return;
       }
 
@@ -163,14 +163,14 @@ chrome.runtime.onConnect.addListener((port) => {
 
       const reader = response.body.getReader();
       for await (const token of parseSSEStream(reader)) {
-        try { port.postMessage({ type: 'token', text: token }); } catch { break; }
+        try { port.postMessage({ type: 'token', text: token }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); break; }
       }
-      try { port.postMessage({ type: 'done', remaining, usingOwnKey }); } catch {}
+      try { port.postMessage({ type: 'done', remaining, usingOwnKey }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
     } catch (err) {
       if (err.name === 'AbortError') {
-        try { port.postMessage({ type: 'error', code: 0, message: 'Request timed out' }); } catch {}
+        try { port.postMessage({ type: 'error', code: 0, message: 'Request timed out' }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
       } else {
-        try { port.postMessage({ type: 'error', code: 0, message: err.message }); } catch {}
+        try { port.postMessage({ type: 'error', code: 0, message: err.message }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
       }
     } finally {
       clearTimeout(timeout);

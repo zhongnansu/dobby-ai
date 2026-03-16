@@ -1,0 +1,33 @@
+// constants.js — Shared constants for Dobby AI extension
+
+const Z_INDEX = {
+  TRIGGER: 2147483647,
+  SCREENSHOT_OVERLAY: 2147483646,
+  BUBBLE: 2147483647,
+  PROGRESS_RING: 2147483645,
+  LIGHTBOX: 2147483647,
+};
+
+const THEME = {
+  ACCENT: '#7c3aed',
+  ACCENT_LIGHT: '#a78bfa',
+  ACCENT_BG: 'rgba(124, 58, 237, 0.1)',
+  ACCENT_STRONG: 'rgba(124, 58, 237, 0.9)',
+  ACCENT_BORDER: 'rgba(124, 58, 237, 0.6)',
+  ACCENT_GLOW: 'rgba(124,58,237,0.4)',
+  FONT_STACK: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  BACKDROP_BLUR: 'blur(12px)',
+};
+
+const TIMING = {
+  LONG_PRESS_DURATION: 1000,
+  PROGRESS_RING_DELAY: 500,
+  MOVEMENT_THRESHOLD: 5,
+  SELECTION_DEBOUNCE: 300,
+  SCROLL_DEBOUNCE: 150,
+  RENDER_DEBOUNCE: 50,
+  TOOLTIP_AUTO_HIDE: 2000,
+  MOUSEUP_DELAY: 10,
+};
+
+if (typeof module !== 'undefined') module.exports = { Z_INDEX, THEME, TIMING };

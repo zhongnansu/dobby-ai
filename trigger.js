@@ -4,6 +4,8 @@
 // - showBubbleWithPresets(rect, text, anchorNode) from bubble.js
 // - hideBubble() from bubble.js
 // - _getBubbleContainer() from bubble.js
+// - Z_INDEX, THEME, TIMING from constants.js
+// - removeElement, isClickInsideUI from dom-utils.js
 
 let triggerButton = null;
 let dobbyEnabled = true;
@@ -107,7 +109,7 @@ function createTriggerButton() {
     tooltipTimer = setTimeout(() => {
       tooltip.style.opacity = '0';
       tooltip.style.visibility = 'hidden';
-    }, 2000);
+    }, TIMING.TOOLTIP_AUTO_HIDE);
   });
   triggerButton.addEventListener('mouseleave', () => {
     tooltip.style.opacity = '0';
@@ -117,7 +119,7 @@ function createTriggerButton() {
 
   Object.assign(triggerButton.style, {
     position: 'fixed',
-    zIndex: '2147483647',
+    zIndex: String(Z_INDEX.TRIGGER),
     background: 'rgba(255, 255, 255, 0.85)',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
@@ -175,11 +177,7 @@ function hideTrigger() {
 
 // Listen for text selection
 document.addEventListener('mouseup', (e) => {
-  if (triggerButton?.contains(e.target)) return;
-  if (typeof _getBubbleContainer === 'function') {
-    const bc = _getBubbleContainer();
-    if (bc?.contains(e.target)) return;
-  }
+  if (isClickInsideUI(e.target)) return;
 
   const cursorX = e.clientX;
   const cursorY = e.clientY;
@@ -192,7 +190,7 @@ document.addEventListener('mouseup', (e) => {
     } else {
       hideTrigger();
     }
-  }, 10);
+  }, TIMING.MOUSEUP_DELAY);
 });
 
 // Fallback: selectionchange fires even when sites (Gmail, etc.) capture mouseup
@@ -210,7 +208,7 @@ document.addEventListener('selectionchange', () => {
         showTrigger(rect.right, rect.bottom);
       }
     }
-  }, 300);
+  }, TIMING.SELECTION_DEBOUNCE);
 });
 
 // Hide trigger on scroll, re-show after scroll stops
@@ -226,16 +224,12 @@ window.addEventListener('scroll', () => {
       const rect = range.getBoundingClientRect();
       showTrigger(rect.right, rect.top);
     }
-  }, 150);
+  }, TIMING.SCROLL_DEBOUNCE);
 }, true);
 
 // Hide on click away
 document.addEventListener('mousedown', (e) => {
-  if (triggerButton?.contains(e.target)) return;
-  if (typeof _getBubbleContainer === 'function') {
-    const bc = _getBubbleContainer();
-    if (bc?.contains(e.target)) return;
-  }
+  if (isClickInsideUI(e.target)) return;
   hideTrigger();
 });
 
@@ -266,19 +260,21 @@ async function extractImagesFromSelection(selection, maxImages = 2) {
 
 // --- Long-press screenshot mode ---
 
-let longPressTimer = null;
-let longPressStartX = 0;
-let longPressStartY = 0;
-const LONG_PRESS_DURATION = 1000;
-const MOVEMENT_THRESHOLD = 5;
-let screenshotOverlay = null;
-let screenshotStartX = 0;
-let screenshotStartY = 0;
-let screenshotRect = null;
-let screenshotDragStarted = false;
-let progressRing = null;
-let progressRingTimer = null;
-const PROGRESS_RING_DELAY = 500;
+const longPressState = {
+  timer: null,
+  startX: 0,
+  startY: 0,
+  ring: null,
+  ringTimer: null,
+};
+
+const screenshotState = {
+  overlay: null,
+  startX: 0,
+  startY: 0,
+  rect: null,
+  dragStarted: false,
+};
 
 function _ensureProgressRingStyles() {
   if (document.getElementById('dobby-progress-ring-styles')) return;
@@ -319,7 +315,7 @@ function _showProgressRing(x, y) {
     width: SIZE + 'px',
     height: SIZE + 'px',
     pointerEvents: 'none',
-    zIndex: '2147483645',
+    zIndex: String(Z_INDEX.PROGRESS_RING),
     animation: 'dobby-ring-appear 0.15s ease-out forwards',
   });
 
@@ -334,7 +330,7 @@ function _showProgressRing(x, y) {
     borderRadius: '50%',
     background: 'rgba(245,240,255,0.92)',
     backdropFilter: 'blur(8px)',
-    boxShadow: '0 2px 12px rgba(124,58,237,0.4), 0 0 0 1px rgba(124,58,237,0.15)',
+    boxShadow: '0 2px 12px ' + THEME.ACCENT_GLOW + ', 0 0 0 1px rgba(124,58,237,0.15)',
   });
   container.appendChild(backdrop);
 
@@ -364,7 +360,7 @@ function _showProgressRing(x, y) {
   fill.setAttribute('cy', String(HALF));
   fill.setAttribute('r', String(RADIUS));
   fill.setAttribute('fill', 'none');
-  fill.setAttribute('stroke', '#7c3aed');
+  fill.setAttribute('stroke', THEME.ACCENT);
   fill.setAttribute('stroke-width', '3');
   fill.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
@@ -381,7 +377,7 @@ function _showProgressRing(x, y) {
   iconSvg.setAttribute('height', '10');
   iconSvg.setAttribute('viewBox', '0 0 24 24');
   iconSvg.setAttribute('fill', 'none');
-  iconSvg.setAttribute('stroke', '#7c3aed');
+  iconSvg.setAttribute('stroke', THEME.ACCENT);
   iconSvg.setAttribute('stroke-width', '2');
   iconSvg.setAttribute('stroke-linecap', 'round');
   Object.assign(iconSvg.style, {
@@ -412,15 +408,13 @@ function _showProgressRing(x, y) {
 
   container.appendChild(iconSvg);
   document.body.appendChild(container);
-  progressRing = container;
+  longPressState.ring = container;
 }
 
 function _removeProgressRing() {
-  if (progressRing) {
-    if (progressRing.parentNode) {
-      progressRing.parentNode.removeChild(progressRing);
-    }
-    progressRing = null;
+  if (longPressState.ring) {
+    removeElement(longPressState.ring);
+    longPressState.ring = null;
   }
 }
 
@@ -456,47 +450,43 @@ document.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return; // left click only
   if (isInteractiveElement(e.target)) return;
   if (isScrollbarClick(e)) return;
-  if (triggerButton?.contains(e.target)) return;
-  if (typeof _getBubbleContainer === 'function') {
-    const bc = _getBubbleContainer();
-    if (bc?.contains(e.target)) return;
-  }
-  if (screenshotOverlay) return;
+  if (isClickInsideUI(e.target)) return;
+  if (screenshotState.overlay) return;
 
   if (!dobbyEnabled) return;
 
-  longPressStartX = e.clientX;
-  longPressStartY = e.clientY;
+  longPressState.startX = e.clientX;
+  longPressState.startY = e.clientY;
 
-  progressRingTimer = setTimeout(() => {
-    progressRingTimer = null;
+  longPressState.ringTimer = setTimeout(() => {
+    longPressState.ringTimer = null;
     _showProgressRing(e.clientX, e.clientY);
-  }, PROGRESS_RING_DELAY);
+  }, TIMING.PROGRESS_RING_DELAY);
 
-  longPressTimer = setTimeout(() => {
+  longPressState.timer = setTimeout(() => {
     startScreenshotMode();
-  }, LONG_PRESS_DURATION);
+  }, TIMING.LONG_PRESS_DURATION);
 });
 
 document.addEventListener('mousemove', (e) => {
-  if (longPressTimer) {
-    const dx = Math.abs(e.clientX - longPressStartX);
-    const dy = Math.abs(e.clientY - longPressStartY);
-    if (dx > MOVEMENT_THRESHOLD || dy > MOVEMENT_THRESHOLD) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-      if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
+  if (longPressState.timer) {
+    const dx = Math.abs(e.clientX - longPressState.startX);
+    const dy = Math.abs(e.clientY - longPressState.startY);
+    if (dx > TIMING.MOVEMENT_THRESHOLD || dy > TIMING.MOVEMENT_THRESHOLD) {
+      clearTimeout(longPressState.timer);
+      longPressState.timer = null;
+      if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
       _removeProgressRing();
     }
   }
 
   // Screenshot region drag
-  if (screenshotOverlay && screenshotRect && screenshotDragStarted) {
-    const x = Math.min(screenshotStartX, e.clientX);
-    const y = Math.min(screenshotStartY, e.clientY);
-    const w = Math.abs(e.clientX - screenshotStartX);
-    const h = Math.abs(e.clientY - screenshotStartY);
-    Object.assign(screenshotRect.style, {
+  if (screenshotState.overlay && screenshotState.rect && screenshotState.dragStarted) {
+    const x = Math.min(screenshotState.startX, e.clientX);
+    const y = Math.min(screenshotState.startY, e.clientY);
+    const w = Math.abs(e.clientX - screenshotState.startX);
+    const h = Math.abs(e.clientY - screenshotState.startY);
+    Object.assign(screenshotState.rect.style, {
       left: x + 'px',
       top: y + 'px',
       width: w + 'px',
@@ -506,24 +496,24 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('mouseup', (e) => {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-    if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
+  if (longPressState.timer) {
+    clearTimeout(longPressState.timer);
+    longPressState.timer = null;
+    if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
     _removeProgressRing();
   }
 }, true);
 
 function startScreenshotMode() {
-  if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
+  if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
   _removeProgressRing();
-  longPressTimer = null;
+  longPressState.timer = null;
 
-  screenshotOverlay = document.createElement('div');
-  Object.assign(screenshotOverlay.style, {
+  screenshotState.overlay = document.createElement('div');
+  Object.assign(screenshotState.overlay.style, {
     position: 'fixed',
     inset: '0',
-    zIndex: '2147483646',
+    zIndex: String(Z_INDEX.SCREENSHOT_OVERLAY),
     background: 'rgba(0, 0, 0, 0.4)',
     cursor: 'crosshair',
   });
@@ -535,55 +525,55 @@ function startScreenshotMode() {
     top: '16px',
     left: '50%',
     transform: 'translateX(-50%)',
-    background: 'rgba(124, 58, 237, 0.9)',
+    background: THEME.ACCENT_STRONG,
     color: 'white',
     padding: '10px 24px',
     borderRadius: '8px',
     fontSize: '14px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontWeight: '500',
-    zIndex: '2147483647',
+    zIndex: String(Z_INDEX.TRIGGER),
     pointerEvents: 'none',
     boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
     letterSpacing: '0.3px',
   });
   banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
-  screenshotOverlay.appendChild(banner);
+  screenshotState.overlay.appendChild(banner);
 
   // Visual border around the viewport
   const border = document.createElement('div');
   Object.assign(border.style, {
     position: 'fixed',
     inset: '0',
-    border: '2px solid rgba(124, 58, 237, 0.6)',
+    border: '2px solid ' + THEME.ACCENT_BORDER,
     pointerEvents: 'none',
-    zIndex: '2147483647',
+    zIndex: String(Z_INDEX.TRIGGER),
   });
-  screenshotOverlay.appendChild(border);
+  screenshotState.overlay.appendChild(border);
 
-  screenshotRect = document.createElement('div');
-  Object.assign(screenshotRect.style, {
+  screenshotState.rect = document.createElement('div');
+  Object.assign(screenshotState.rect.style, {
     position: 'fixed',
-    border: '2px dashed #7c3aed',
-    background: 'rgba(124, 58, 237, 0.1)',
+    border: '2px dashed ' + THEME.ACCENT,
+    background: THEME.ACCENT_BG,
     display: 'none',
-    zIndex: '2147483647',
+    zIndex: String(Z_INDEX.TRIGGER),
   });
-  screenshotOverlay.appendChild(screenshotRect);
+  screenshotState.overlay.appendChild(screenshotState.rect);
 
-  screenshotDragStarted = false;
+  screenshotState.dragStarted = false;
 
-  screenshotOverlay.addEventListener('mousedown', (e) => {
+  screenshotState.overlay.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
     // Clear existing toolbar if user re-drags on overlay
-    const existingToolbar = screenshotOverlay.querySelector('[data-screenshot-toolbar]');
+    const existingToolbar = screenshotState.overlay.querySelector('[data-screenshot-toolbar]');
     if (existingToolbar) existingToolbar.remove();
-    screenshotDragStarted = true;
-    screenshotStartX = e.clientX;
-    screenshotStartY = e.clientY;
-    screenshotRect.style.display = 'block';
-    Object.assign(screenshotRect.style, {
+    screenshotState.dragStarted = true;
+    screenshotState.startX = e.clientX;
+    screenshotState.startY = e.clientY;
+    screenshotState.rect.style.display = 'block';
+    Object.assign(screenshotState.rect.style, {
       left: e.clientX + 'px',
       top: e.clientY + 'px',
       width: '0px',
@@ -591,33 +581,33 @@ function startScreenshotMode() {
     });
   });
 
-  screenshotOverlay.addEventListener('mouseup', (e) => {
+  screenshotState.overlay.addEventListener('mouseup', (e) => {
     // Ignore the mouseup from the long-press release (no drag started yet)
-    if (!screenshotDragStarted) return;
+    if (!screenshotState.dragStarted) return;
 
-    const x = Math.min(screenshotStartX, e.clientX);
-    const y = Math.min(screenshotStartY, e.clientY);
-    const w = Math.abs(e.clientX - screenshotStartX);
-    const h = Math.abs(e.clientY - screenshotStartY);
+    const x = Math.min(screenshotState.startX, e.clientX);
+    const y = Math.min(screenshotState.startY, e.clientY);
+    const w = Math.abs(e.clientX - screenshotState.startX);
+    const h = Math.abs(e.clientY - screenshotState.startY);
 
     // Too small — reset selection and let user try again
     if (w < 10 || h < 10) {
-      screenshotRect.style.display = 'none';
-      screenshotDragStarted = false;
+      screenshotState.rect.style.display = 'none';
+      screenshotState.dragStarted = false;
       return;
     }
 
     // Stop tracking drag so mousemove no longer resizes the rectangle
-    screenshotDragStarted = false;
+    screenshotState.dragStarted = false;
 
     // Lock the selection rectangle with solid border
-    Object.assign(screenshotRect.style, {
-      border: '2px solid #7c3aed',
+    Object.assign(screenshotState.rect.style, {
+      border: '2px solid ' + THEME.ACCENT,
     });
 
 
     // Show confirmation toolbar below the selection
-    _showConfirmToolbar(screenshotOverlay, banner, { x, y, width: w, height: h });
+    _showConfirmToolbar(screenshotState.overlay, banner, { x, y, width: w, height: h });
   });
 
   const escHandler = (e) => {
@@ -627,9 +617,9 @@ function startScreenshotMode() {
     }
   };
   document.addEventListener('keydown', escHandler);
-  screenshotOverlay._escHandler = escHandler;
+  screenshotState.overlay._escHandler = escHandler;
 
-  document.body.appendChild(screenshotOverlay);
+  document.body.appendChild(screenshotState.overlay);
 }
 
 function _showConfirmToolbar(overlay, banner, rect) {
@@ -654,7 +644,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
     transform: 'translateX(-50%)',
     display: 'flex',
     gap: '8px',
-    zIndex: '2147483647',
+    zIndex: String(Z_INDEX.TRIGGER),
   });
 
   const btnBase = {
@@ -673,7 +663,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
   confirmBtn.textContent = 'Capture';
   Object.assign(confirmBtn.style, {
     ...btnBase,
-    background: '#7c3aed',
+    background: THEME.ACCENT,
     color: 'white',
   });
   confirmBtn.addEventListener('click', async (e) => {
@@ -708,13 +698,13 @@ function _showConfirmToolbar(overlay, banner, rect) {
   reselectBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toolbar.remove();
-    Object.assign(screenshotRect.style, {
+    Object.assign(screenshotState.rect.style, {
       display: 'none',
-      border: '2px dashed #7c3aed',
+      border: '2px dashed ' + THEME.ACCENT,
       width: '0px',
       height: '0px',
     });
-    screenshotDragStarted = false;
+    screenshotState.dragStarted = false;
     banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
   });
 
@@ -743,26 +733,22 @@ function _showConfirmToolbar(overlay, banner, rect) {
 }
 
 function cancelScreenshotMode() {
-  if (screenshotOverlay) {
-    if (screenshotOverlay._escHandler) {
-      document.removeEventListener('keydown', screenshotOverlay._escHandler);
+  if (screenshotState.overlay) {
+    if (screenshotState.overlay._escHandler) {
+      document.removeEventListener('keydown', screenshotState.overlay._escHandler);
     }
-    if (screenshotOverlay.parentNode) {
-      screenshotOverlay.parentNode.removeChild(screenshotOverlay);
-    }
-    screenshotOverlay = null;
-    screenshotRect = null;
-    screenshotDragStarted = false;
+    removeElement(screenshotState.overlay);
+    screenshotState.overlay = null;
+    screenshotState.rect = null;
+    screenshotState.dragStarted = false;
   }
 }
 
 function _resetTriggerForTesting() {
-  if (triggerButton && triggerButton.parentNode) {
-    triggerButton.parentNode.removeChild(triggerButton);
-  }
+  removeElement(triggerButton);
   triggerButton = null;
   dobbyEnabled = true;
-  if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
+  if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
   _removeProgressRing();
 }
 

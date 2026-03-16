@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 let mockStorage = {};
 
 global.chrome = {
+  runtime: { lastError: undefined },
   storage: {
     local: {
       get: vi.fn((keys, cb) => {
