@@ -61,7 +61,7 @@ export function startStreaming(shadow, messages) {
       cursorEl.classList.add('hidden');
       followUpInput.disabled = false;
       followUpInput.focus();
-      currentMessages.push({ role: 'assistant', content: responseText });
+      setCurrentMessages([...currentMessages, { role: 'assistant', content: responseText }]);
 
       // Save to history — extract text from multimodal content arrays
       const firstUser = messages.find((m) => m.role === 'user');

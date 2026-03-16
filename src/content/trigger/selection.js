@@ -13,6 +13,7 @@ import {
   setTriggerButton,
 } from '../shared/state.js';
 import { isClickInsideUI, getSelectedText, getSelectionRect, removeElement } from '../shared/dom-utils.js';
+import { getBubbleContainer } from '../bubble/core.js';
 import { TIMING } from '../shared/constants.js';
 import { showTrigger, hideTrigger, createTriggerButton } from './button.js';
 import { startScreenshotMode, cancelScreenshotMode } from './screenshot.js';
@@ -49,7 +50,7 @@ export function isScrollbarClick(e) {
 export function registerListeners() {
   // Listen for text selection
   document.addEventListener('mouseup', (e) => {
-    if (isClickInsideUI(e.target)) return;
+    if (isClickInsideUI(e.target, getBubbleContainer)) return;
 
     const cursorX = e.clientX;
     const cursorY = e.clientY;
@@ -96,7 +97,7 @@ export function registerListeners() {
 
   // Hide on click away
   document.addEventListener('mousedown', (e) => {
-    if (isClickInsideUI(e.target)) return;
+    if (isClickInsideUI(e.target, getBubbleContainer)) return;
     hideTrigger();
   });
 
@@ -105,7 +106,7 @@ export function registerListeners() {
     if (e.button !== 0) return; // left click only
     if (isInteractiveElement(e.target)) return;
     if (isScrollbarClick(e)) return;
-    if (isClickInsideUI(e.target)) return;
+    if (isClickInsideUI(e.target, getBubbleContainer)) return;
     if (screenshotState.overlay) return;
 
     if (!dobbyEnabled) return;
@@ -161,18 +162,6 @@ export function registerListeners() {
     }
   }, true);
 
-  // Load initial enabled state and listen for toggle from toolbar popup
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    chrome.storage.local.get('dobbyEnabled', (data) => {
-      setDobbyEnabled(data.dobbyEnabled !== false);
-    });
-    chrome.runtime.onMessage.addListener((msg) => {
-      if (msg.type === 'DOBBY_TOGGLE') {
-        setDobbyEnabled(msg.enabled);
-        if (!msg.enabled) { hideTrigger(); }
-      }
-    });
-  }
 }
 
 export function _resetTriggerForTesting() {
