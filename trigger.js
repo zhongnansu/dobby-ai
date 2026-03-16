@@ -515,6 +515,7 @@ document.addEventListener('mouseup', (e) => {
 }, true);
 
 function startScreenshotMode() {
+  if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
   _removeProgressRing();
   longPressTimer = null;
 
@@ -761,6 +762,7 @@ function _resetTriggerForTesting() {
   }
   triggerButton = null;
   dobbyEnabled = true;
+  if (progressRingTimer) { clearTimeout(progressRingTimer); progressRingTimer = null; }
   _removeProgressRing();
 }
 
