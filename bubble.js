@@ -891,6 +891,12 @@ async function showHistoryPanel(shadow) {
       responseEl.innerHTML = renderMarkdown(entry.response);
       body.appendChild(responseEl);
 
+      // Show response section and hide presets
+      const presetsSection = shadow.querySelector('.presets-section');
+      if (presetsSection) presetsSection.classList.add('collapsed');
+      const responseSection = shadow.querySelector('.response-section');
+      if (responseSection) responseSection.classList.add('active');
+
       // Restore conversation state so follow-up works
       currentMessages = [];
       if (entry.instruction) currentMessages.push({ role: 'system', content: entry.instruction });
