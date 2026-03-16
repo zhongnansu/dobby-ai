@@ -58,9 +58,9 @@ jobs:
       - run: npm run build
       - name: Package extension
         run: |
-          cd dist && zip -r ../ask-ai-extension.zip .
+          cd dist && zip -r ../dobby-ai.zip .
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ask-ai-extension
-          path: ask-ai-extension.zip
+          name: dobby-ai
+          path: dobby-ai.zip

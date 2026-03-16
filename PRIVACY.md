@@ -1,4 +1,4 @@
-# Privacy Policy — Ask AI Chrome Extension
+# Privacy Policy — Dobby AI Chrome Extension
 
 **Last updated:** March 11, 2026
 
@@ -41,4 +41,4 @@ Your selected text is passed to these services via URL query parameters or clipb
 ## Contact
 
 For questions about this privacy policy, please open an issue at:
-https://github.com/zhongnansu/ask-ai-extension/issues
+https://github.com/zhongnansu/dobby-ai/issues

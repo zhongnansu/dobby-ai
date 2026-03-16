@@ -26,7 +26,7 @@ jobs:
       - name: Package extension
         run: |
           mkdir -p dist
-          zip -r dist/ask-ai-extension-dev.zip \
+          zip -r dist/dobby-ai-dev.zip \
             manifest.json \
             background.js \
             content.js \
@@ -40,8 +40,8 @@ jobs:
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ask-ai-extension-pr-${{ github.event.pull_request.number }}
-          path: dist/ask-ai-extension-dev.zip
+          name: dobby-ai-pr-${{ github.event.pull_request.number }}
+          path: dist/dobby-ai-dev.zip
           retention-days: 14
 
       - name: Analyze and post PR comment
@@ -51,7 +51,7 @@ jobs:
             const fs = require('fs');
 
             // --- Zip size ---
-            const zipPath = 'dist/ask-ai-extension-dev.zip';
+            const zipPath = 'dist/dobby-ai-dev.zip';
             const stats = fs.statSync(zipPath);
             const sizeKB = (stats.size / 1024).toFixed(1);
 
