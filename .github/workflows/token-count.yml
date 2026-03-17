@@ -7,8 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   update-tokens:
@@ -23,19 +22,28 @@ jobs:
         with:
           include: 'src/**/*.js'
           exclude: 'src/**/*.test.js'
-          badge-path: '.github/badges/tokens.svg'
-      - name: Create PR if badge changed
+      - name: Update Gist badge
         run: |
-          git add README.md .github/badges/tokens.svg
-          git diff --cached --quiet && echo "No changes" && exit 0
-          BRANCH="chore/update-token-count"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git commit -m "docs: update token count to ${{ steps.tokens.outputs.tokens }} tokens"
-          git push -f origin "$BRANCH"
-          gh pr create --title "docs: update token count badge" \
-            --body "Auto-generated: token count updated to **${{ steps.tokens.outputs.tokens }}** tokens." \
-            --base main --head "$BRANCH" || true
+          PCT=${{ steps.tokens.outputs.percentage }}
+          TOKENS=${{ steps.tokens.outputs.tokens }}
+
+          # Color based on context window percentage
+          if [ "$PCT" -lt 30 ]; then COLOR="brightgreen"
+          elif [ "$PCT" -lt 50 ]; then COLOR="green"
+          elif [ "$PCT" -lt 70 ]; then COLOR="yellow"
+          else COLOR="red"; fi
+
+          # Format token count
+          if [ "$TOKENS" -ge 1000 ]; then
+            LABEL=$(python3 -c "print(f'{$TOKENS/1000:.1f}k')")
+          else
+            LABEL=$TOKENS
+          fi
+
+          echo "Tokens: $TOKENS ($LABEL) · ${PCT}% context · Color: $COLOR"
+
+          gh gist edit ${{ secrets.TOKEN_BADGE_GIST_ID }} -f tokens.json - <<GISTEOF
+          {"schemaVersion":1,"label":"tokens","message":"${LABEL} · ${PCT}% context","color":"${COLOR}"}
+          GISTEOF
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIST_TOKEN }}
