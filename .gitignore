@@ -3,3 +3,5 @@ node_modules/
 docs/superpowers/
 .worktrees/
 dist/
+playwright-report/
+test-results/
