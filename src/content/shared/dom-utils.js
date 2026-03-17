@@ -1,4 +1,4 @@
-// src/content/shared/dom-utils.js
+// src/content/shared/dom-utils.js — Shared DOM utility functions
 
 export function removeElement(el) {
   if (el?.parentNode) el.parentNode.removeChild(el);
