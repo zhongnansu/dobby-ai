@@ -1,4 +1,4 @@
-// src/content/shared/constants.js
+// src/content/shared/constants.js — Shared constants for Dobby AI extension
 
 export const Z_INDEX = {
   TRIGGER: 2147483647,
