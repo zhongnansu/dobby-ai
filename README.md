@@ -17,7 +17,7 @@
   <a href="https://github.com/zhongnansu/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
   <img src="https://img.shields.io/badge/chrome-web%20store-orange?logo=googlechrome&logoColor=white" alt="Chrome Web Store">
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
-  <!-- token-count --><!-- /token-count -->
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/zhongnansu/67d3ff04e606234417bba6bca0f60d85/raw/tokens.json" alt="Repo Tokens">
 </p>
 
 <p align="center">
