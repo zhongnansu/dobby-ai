@@ -37,7 +37,8 @@ async function launchExtension() {
  */
 async function selectText(page, selector) {
   await page.click(selector, { clickCount: 3 });
-  await page.waitForTimeout(200);
+  // Wait for selection to register
+  await page.waitForFunction(() => window.getSelection().toString().length > 0, { timeout: 3000 });
 }
 
 /**
@@ -123,7 +124,9 @@ async function isVisibleInShadow(page, selector) {
     const host = document.getElementById('dobby-ai-bubble');
     if (!host || !host.shadowRoot) return false;
     const el = host.shadowRoot.querySelector(sel);
-    return el ? el.offsetParent !== null || el.style.display !== 'none' : false;
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
   }, selector);
 }
 
