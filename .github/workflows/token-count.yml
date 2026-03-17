@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: qwibitai/nanoclaw/repo-tokens@v1
+      - uses: qwibitai/nanoclaw/repo-tokens@v1.2.0
         id: tokens
         with:
           include: 'src/**/*.js'
