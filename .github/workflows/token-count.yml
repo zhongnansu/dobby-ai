@@ -8,20 +8,13 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   update-tokens:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: badges
-          fetch-depth: 0
-      - name: Merge latest main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git merge origin/main --no-edit || true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -31,9 +24,18 @@ jobs:
           include: 'src/**/*.js'
           exclude: 'src/**/*.test.js'
           badge-path: '.github/badges/tokens.svg'
-      - name: Commit and push to badges branch
+      - name: Create PR if badge changed
         run: |
-          git add .github/badges/tokens.svg
-          git diff --cached --quiet && exit 0
+          git add README.md .github/badges/tokens.svg
+          git diff --cached --quiet && echo "No changes" && exit 0
+          BRANCH="chore/update-token-count"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git commit -m "docs: update token count to ${{ steps.tokens.outputs.tokens }} tokens"
-          git push origin badges
+          git push -f origin "$BRANCH"
+          gh pr create --title "docs: update token count badge" \
+            --body "Auto-generated: token count updated to **${{ steps.tokens.outputs.tokens }}** tokens." \
+            --base main --head "$BRANCH" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
