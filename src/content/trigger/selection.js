@@ -58,7 +58,9 @@ export function registerListeners() {
       const text = getSelectedText();
 
       if (text.length >= 3 && dobbyEnabled) {
-        showTrigger(cursorX, cursorY);
+        const sel = window.getSelection();
+        const anchorNode = sel.anchorNode || null;
+        showTrigger(cursorX, cursorY, { text, anchorNode });
       } else {
         hideTrigger();
       }
@@ -74,8 +76,9 @@ export function registerListeners() {
       if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
         // Only show if trigger isn't already visible
         if (!triggerButton || triggerButton.style.display === 'none') {
+          const anchorNode = selection.anchorNode || null;
           const rect = getSelectionRect();
-          showTrigger(rect.right, rect.bottom);
+          showTrigger(rect.right, rect.bottom, { text, anchorNode });
         }
       }
     }, TIMING.SELECTION_DEBOUNCE));
@@ -89,8 +92,9 @@ export function registerListeners() {
       const text = getSelectedText();
       const selection = window.getSelection();
       if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
+        const anchorNode = selection.anchorNode || null;
         const rect = getSelectionRect();
-        showTrigger(rect.right, rect.top);
+        showTrigger(rect.right, rect.top, { text, anchorNode });
       }
     }, TIMING.SCROLL_DEBOUNCE));
   }, true);
