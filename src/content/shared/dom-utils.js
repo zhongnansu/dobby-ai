@@ -7,6 +7,8 @@ export function removeElement(el) {
 export function isClickInsideUI(target, getBubbleContainer) {
   const trigger = document.getElementById('dobby-ai-trigger');
   if (trigger?.contains(target)) return true;
+  const toolbarHost = document.getElementById('dobby-ai-toolbar-host');
+  if (toolbarHost?.contains(target)) return true;
   if (typeof getBubbleContainer === 'function') {
     const bc = getBubbleContainer();
     if (bc?.contains(target)) return true;
