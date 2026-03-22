@@ -125,7 +125,7 @@ chrome.runtime.onConnect.addListener((port) => {
             Authorization: `Bearer ${stored.userApiKey}`,
           },
           body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model: 'gpt-4.1-mini',
             messages,
             stream: true,
             max_tokens: 1000,

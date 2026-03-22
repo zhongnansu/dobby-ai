@@ -28,7 +28,7 @@ describe('createChatStream', () => {
     );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.model).toBe('gpt-4o-mini');
+    expect(body.model).toBe('gpt-4.1-mini');
     expect(body.messages).toEqual(messages);
     expect(body.stream).toBe(true);
     expect(body.max_tokens).toBe(1000);
