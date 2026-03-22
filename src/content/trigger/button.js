@@ -371,6 +371,7 @@ function openPopover(host, shadow) {
   // "Custom prompt..." item
   const customItem = document.createElement('button');
   customItem.className = 'toolbar-popover-item custom-prompt';
+  customItem.dataset.action = 'custom';
   customItem.textContent = 'Custom prompt\u2026';
   customItem.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -387,6 +388,15 @@ function openPopover(host, shadow) {
   popover.appendChild(customItem);
 
   popover.classList.add('open');
+
+  // Flip popover below the toolbar if it would be clipped above the viewport
+  popover.classList.remove('popover-below');
+  const hostRect = host.getBoundingClientRect();
+  const popoverRect = popover.getBoundingClientRect();
+  if (popoverRect.top < 0 || hostRect.top < popoverRect.height + 6) {
+    popover.classList.add('popover-below');
+  }
+
   setPopoverOpen(true);
 }
 
