@@ -1,6 +1,6 @@
 // e2e/extension.spec.js — Extension loads and basic functionality
 const { test, expect } = require('@playwright/test');
-const { launchExtension, selectText } = require('./helpers');
+const { launchExtension, selectText, waitForToolbar } = require('./helpers');
 
 let context, extensionId, page;
 
@@ -15,18 +15,19 @@ test.afterAll(async () => {
 test('content script injects on page load', async () => {
   await selectText(page, 'h1');
 
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
+  await waitForToolbar(page);
+  const toolbar = page.locator('#dobby-ai-toolbar-host');
+  await expect(toolbar).toBeVisible({ timeout: 3000 });
 });
 
-test('trigger hides when selection is cleared', async () => {
+test('toolbar hides when selection is cleared', async () => {
   await selectText(page, 'h1');
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
+  const toolbar = page.locator('#dobby-ai-toolbar-host');
+  await expect(toolbar).toBeVisible({ timeout: 3000 });
 
   await page.click('body', { position: { x: 10, y: 10 } });
   await page.waitForTimeout(300);
-  await expect(trigger).not.toBeVisible();
+  await expect(toolbar).not.toBeVisible();
 });
 
 test('popup page loads and toggle works', async () => {

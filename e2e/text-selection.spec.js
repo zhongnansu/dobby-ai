@@ -1,6 +1,6 @@
-// e2e/text-selection.spec.js — Text selection → trigger → bubble → response flow
+// e2e/text-selection.spec.js — Text selection → toolbar → bubble → response flow
 const { test, expect } = require('@playwright/test');
-const { launchExtension, selectText, waitForBubble, waitForStreamingStarted, clickInShadow, fillInShadow, pressKeyInShadow, getTextInShadow, countInShadow } = require('./helpers');
+const { launchExtension, selectText, waitForToolbar, hoverToolbar, openBubbleViaToolbar, clickToolbarPreset, waitForBubble, waitForStreamingStarted, clickInShadow, fillInShadow, pressKeyInShadow, getTextInShadow, countInShadow } = require('./helpers');
 
 let context, extensionId, page;
 
@@ -17,14 +17,18 @@ test.beforeEach(async () => {
   await page.waitForTimeout(300);
 });
 
-test('select text shows trigger, click opens bubble with presets', async () => {
+test('select text shows toolbar', async () => {
   await selectText(page, 'h1');
 
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
+  await waitForToolbar(page);
+  const toolbar = page.locator('#dobby-ai-toolbar-host');
+  await expect(toolbar).toBeVisible({ timeout: 3000 });
+});
 
-  await trigger.click();
-  await waitForBubble(page);
+test('open bubble via toolbar shows bubble with presets', async () => {
+  await selectText(page, 'h1');
+  await waitForToolbar(page);
+  await openBubbleViaToolbar(page);
 
   const logo = await getTextInShadow(page, '.bubble-logo');
   expect(logo).toContain('Dobby AI');
@@ -33,34 +37,25 @@ test('select text shows trigger, click opens bubble with presets', async () => {
   expect(chipCount).toBeGreaterThan(0);
 });
 
-test('clicking preset chip activates response section', async () => {
+test('clicking toolbar preset morphs toolbar into chat', async () => {
   await selectText(page, 'h1');
+  await waitForToolbar(page);
+  await hoverToolbar(page);
+  await clickToolbarPreset(page, 0);
 
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
-  await trigger.click();
-  await waitForBubble(page);
-
-  await clickInShadow(page, '.preset-chip');
-
-  // Response section should be active (presets hidden, response visible)
-  await waitForStreamingStarted(page);
-  const isActive = await page.evaluate(() => {
-    const host = document.getElementById('dobby-ai-bubble');
-    if (!host || !host.shadowRoot) return false;
-    const rs = host.shadowRoot.querySelector('.response-section');
-    return rs && rs.classList.contains('active');
-  });
-  expect(isActive).toBe(true);
+  // Toolbar should be in morphed state
+  await page.waitForFunction(() => {
+    const h = document.getElementById('dobby-ai-toolbar-host');
+    if (!h || !h.shadowRoot) return false;
+    const toolbar = h.shadowRoot.querySelector('.toolbar');
+    return toolbar && toolbar.classList.contains('morphed');
+  }, { timeout: 5000 });
 });
 
 test('close button dismisses bubble', async () => {
   await selectText(page, 'h1');
-
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
-  await trigger.click();
-  await waitForBubble(page);
+  await waitForToolbar(page);
+  await openBubbleViaToolbar(page);
 
   await clickInShadow(page, '.close-btn');
   await expect(page.locator('#dobby-ai-bubble')).not.toBeVisible();
@@ -68,11 +63,8 @@ test('close button dismisses bubble', async () => {
 
 test('Escape key dismisses bubble', async () => {
   await selectText(page, 'h1');
-
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
-  await trigger.click();
-  await waitForBubble(page);
+  await waitForToolbar(page);
+  await openBubbleViaToolbar(page);
 
   await page.keyboard.press('Escape');
   await expect(page.locator('#dobby-ai-bubble')).not.toBeVisible();
@@ -80,11 +72,8 @@ test('Escape key dismisses bubble', async () => {
 
 test('custom instruction input activates response', async () => {
   await selectText(page, 'h1');
-
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
-  await trigger.click();
-  await waitForBubble(page);
+  await waitForToolbar(page);
+  await openBubbleViaToolbar(page);
 
   await fillInShadow(page, '.preset-input', 'Translate to Spanish');
   await pressKeyInShadow(page, '.preset-input', 'Enter');
@@ -94,11 +83,8 @@ test('custom instruction input activates response', async () => {
 
 test('pin button keeps bubble on click away', async () => {
   await selectText(page, 'h1');
-
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
-  await trigger.click();
-  await waitForBubble(page);
+  await waitForToolbar(page);
+  await openBubbleViaToolbar(page);
 
   // Pin the bubble
   await clickInShadow(page, '.pin-btn');

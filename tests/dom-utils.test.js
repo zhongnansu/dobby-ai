@@ -64,6 +64,16 @@ describe('isClickInsideUI', () => {
     expect(isClickInsideUI(el)).toBe(false);
     el.remove();
   });
+
+  it('detects click inside toolbar host', () => {
+    const host = document.createElement('div');
+    host.id = 'dobby-ai-toolbar-host';
+    document.body.appendChild(host);
+    const child = document.createElement('span');
+    host.appendChild(child);
+    expect(isClickInsideUI(child, () => null)).toBe(true);
+    host.remove();
+  });
 });
 
 describe('getSelectedText', () => {

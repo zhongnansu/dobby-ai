@@ -10,12 +10,42 @@ vi.mock('../src/content/bubble/core.js', () => ({
   showBubble: vi.fn(),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(() => null),
+  detectTheme: vi.fn(() => 'light'),
 }));
 
 // Mock image-capture (path must match what the source modules use)
 vi.mock('../src/content/image-capture.js', () => ({
   captureImage: vi.fn(),
   captureScreenshot: vi.fn(),
+}));
+
+// Mock api.js (new dependency of button.js)
+vi.mock('../src/content/api.js', () => ({
+  requestChat: vi.fn(() => ({ cancel: vi.fn() })),
+}));
+
+// Mock detection.js
+vi.mock('../src/content/detection.js', () => ({
+  detectContentType: vi.fn(() => ({ type: 'default', subType: null, confidence: 1.0, wordCount: 5, charCount: 25 })),
+}));
+
+// Mock presets.js
+vi.mock('../src/content/presets.js', () => ({
+  getSuggestedPresetsForType: vi.fn(() => [
+    { label: 'Summarize', instruction: 'Summarize the following' },
+    { label: 'Explain simply', instruction: 'Explain the following in simple terms' },
+  ]),
+  getAllPresetsForType: vi.fn(() => [
+    { label: 'Translate', instruction: 'Translate the following to English' },
+  ]),
+}));
+
+// Mock prompt.js
+vi.mock('../src/content/prompt.js', () => ({
+  buildChatMessages: vi.fn((text, instruction) => [
+    { role: 'system', content: 'You are Dobby AI' },
+    { role: 'user', content: `${instruction}:\n\n${text}` },
+  ]),
 }));
 
 // Set up chrome API mocks before module imports
@@ -31,6 +61,11 @@ const { captureScreenshot } = await import('../src/content/image-capture.js');
 // Register event listeners once (mirrors production behavior where they register at load time)
 registerListeners();
 
+// Helper to get the toolbar host (replaces getElementById('dobby-ai-trigger'))
+function getHost() {
+  return document.getElementById('dobby-ai-toolbar-host');
+}
+
 beforeEach(() => {
   _resetTriggerForTesting();
   document.body.innerHTML = '';
@@ -38,11 +73,12 @@ beforeEach(() => {
 });
 
 describe('createTriggerButton', () => {
-  it('creates button with cockapoo icon', () => {
+  it('creates toolbar host with cockapoo icon in shadow DOM', () => {
     createTriggerButton();
-    const el = document.getElementById('dobby-ai-trigger');
-    expect(el).not.toBeNull();
-    const img = el.querySelector('img');
+    const host = getHost();
+    expect(host).not.toBeNull();
+    const shadow = host.shadowRoot;
+    const img = shadow.querySelector('.toolbar-icon img');
     expect(img).not.toBeNull();
     expect(img.alt).toBe('Dobby AI');
   });
@@ -50,54 +86,50 @@ describe('createTriggerButton', () => {
   it('is idempotent', () => {
     createTriggerButton();
     createTriggerButton();
-    expect(document.querySelectorAll('#dobby-ai-trigger').length).toBe(1);
+    expect(document.querySelectorAll('#dobby-ai-toolbar-host').length).toBe(1);
   });
 
-  it('has circular frosted glass styling', () => {
+  it('has correct host styling', () => {
     createTriggerButton();
-    const el = document.getElementById('dobby-ai-trigger');
-    expect(el.style.position).toBe('fixed');
-    expect(el.style.zIndex).toBe('2147483647');
-    expect(el.style.backdropFilter).toBe('blur(12px)');
-    expect(el.style.cursor).toBe('pointer');
-    expect(el.style.borderRadius).toBe('50%');
-    expect(el.style.display).toBe('none');
+    const host = getHost();
+    expect(host.style.position).toBe('fixed');
+    expect(host.style.zIndex).toBe('2147483647');
+    expect(host.style.display).toBe('none');
   });
 });
 
 describe('showTrigger', () => {
-  it('makes button visible and positions it near cursor', () => {
+  it('makes toolbar visible and positions it near cursor', () => {
     showTrigger(200, 100);
-    const el = document.getElementById('dobby-ai-trigger');
-    expect(el.style.display).toBe('block');
+    const host = getHost();
+    expect(host.style.display).toBe('block');
   });
 
   it('positions below-right of cursor', () => {
     showTrigger(200, 100);
-    const el = document.getElementById('dobby-ai-trigger');
-    expect(el.style.left).toBe('212px'); // x + 12
-    expect(el.style.top).toBe('110px'); // y + 10
+    const host = getHost();
+    expect(host.style.left).toBe('212px'); // x + 12
+    expect(host.style.top).toBe('110px'); // y + 10
   });
 
   it('clamps left position to prevent off-screen rendering', () => {
     showTrigger(1020, 100);
-    const el = document.getElementById('dobby-ai-trigger');
-    expect(parseInt(el.style.left)).toBeLessThanOrEqual(980);
+    const host = getHost();
+    expect(parseInt(host.style.left)).toBeLessThanOrEqual(980);
   });
 
   it('clamps top position to viewport bottom', () => {
     showTrigger(100, 800);
-    const el = document.getElementById('dobby-ai-trigger');
-    expect(parseInt(el.style.top)).toBeLessThanOrEqual(732);
+    const host = getHost();
+    expect(parseInt(host.style.top)).toBeLessThanOrEqual(732);
   });
 });
 
 describe('hideTrigger', () => {
-  it('sets display to none', () => {
+  it('removes toolbar host from DOM', () => {
     showTrigger(100, 100);
     hideTrigger();
-    const el = document.getElementById('dobby-ai-trigger');
-    expect(el.style.display).toBe('none');
+    expect(getHost()).toBeNull();
   });
 
   it('is safe to call when no button exists', () => {
@@ -112,90 +144,70 @@ describe('event-driven behavior', () => {
 
   it('mouseup with selection >= 3 chars shows trigger', () => {
     vi.useFakeTimers();
-    createTriggerButton();
     mockSelection('hello world');
 
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     vi.advanceTimersByTime(20);
 
-    const btn = document.getElementById('dobby-ai-trigger');
-    expect(btn.style.display).toBe('block');
+    const host = getHost();
+    expect(host).not.toBeNull();
+    expect(host.style.display).toBe('block');
     vi.useRealTimers();
   });
 
   it('mouseup with selection < 3 chars hides trigger', () => {
     vi.useFakeTimers();
-    createTriggerButton();
+    // First show it
+    showTrigger(100, 100);
     mockSelection('ab');
 
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     vi.advanceTimersByTime(20);
 
-    const btn = document.getElementById('dobby-ai-trigger');
-    expect(btn.style.display).toBe('none');
+    expect(getHost()).toBeNull();
     vi.useRealTimers();
   });
 
   it('mouseup does not show trigger when dobbyEnabled is false', () => {
     vi.useFakeTimers();
-    createTriggerButton();
     _setDobbyEnabled(false);
     mockSelection('hello world');
 
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     vi.advanceTimersByTime(20);
 
-    const btn = document.getElementById('dobby-ai-trigger');
-    expect(btn.style.display).toBe('none');
+    // Should not exist or should be hidden
+    const host = getHost();
+    if (host) {
+      expect(host.style.display).toBe('none');
+    } else {
+      expect(host).toBeNull();
+    }
     vi.useRealTimers();
   });
 
   it('click-away hides trigger', () => {
-    createTriggerButton();
     showTrigger(200, 100);
-
-    const btn = document.getElementById('dobby-ai-trigger');
-    expect(btn.style.display).toBe('block');
+    expect(getHost()).not.toBeNull();
 
     document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    expect(btn.style.display).toBe('none');
+    expect(getHost()).toBeNull();
   });
 
   it('uses img element with data URI (no innerHTML)', () => {
     createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    const img = btn.querySelector('img');
+    const host = getHost();
+    const shadow = host.shadowRoot;
+    const img = shadow.querySelector('.toolbar-icon img');
     expect(img.src).toContain('data:image/svg+xml');
   });
 
-  it('clicking trigger calls showBubbleWithPresets', async () => {
-    createTriggerButton();
-    // Provide commonAncestorContainer so extractImagesFromSelection doesn't throw
-    const rect = { top: 100, right: 200, bottom: 120, left: 100 };
-    const container = document.createElement('div');
-    const range = {
-      getBoundingClientRect: () => rect,
-      commonAncestorContainer: container,
-      intersectsNode: () => false,
-    };
-    window.getSelection = vi.fn(() => ({
-      toString: () => 'test text',
-      anchorNode: document.body,
-      rangeCount: 1,
-      getRangeAt: () => range,
-    }));
-    showTrigger(200, 100);
-    const btn = document.getElementById('dobby-ai-trigger');
-    btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    // showBubbleWithPresets is called after async extractImagesFromSelection
-    await vi.waitFor(() => {
-      expect(showBubbleWithPresets).toHaveBeenCalledWith(
-        expect.objectContaining({ top: 100, bottom: 120 }),
-        'test text',
-        document.body,
-        undefined
-      );
-    });
+  it('showTrigger passes selection data when provided', () => {
+    const anchorNode = document.createElement('p');
+    showTrigger(200, 100, { text: 'test text', anchorNode });
+    const host = getHost();
+    expect(host._selectedText).toBe('test text');
+    expect(host._anchorNode).toBe(anchorNode);
   });
 });
 
@@ -585,67 +597,18 @@ describe('progress ring', () => {
   });
 });
 
-describe('trigger tooltip', () => {
-  it('tooltip element exists after createTriggerButton', () => {
+describe('toolbar replaces old trigger tooltip', () => {
+  it('toolbar host exists after createTriggerButton', () => {
     createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    const tooltip = btn.querySelector('[data-dobby-tooltip]');
-    expect(tooltip).not.toBeNull();
-    expect(tooltip.textContent).toContain('Hold anywhere for 1s to screenshot');
+    const host = getHost();
+    expect(host).not.toBeNull();
   });
 
-  it('tooltip is initially hidden', () => {
+  it('toolbar shadow DOM contains icon element', () => {
     createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    const tooltip = btn.querySelector('[data-dobby-tooltip]');
-    expect(tooltip.style.opacity).toBe('0');
-    expect(tooltip.style.visibility).toBe('hidden');
-  });
-
-  it('tooltip becomes visible on mouseenter', () => {
-    createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const tooltip = btn.querySelector('[data-dobby-tooltip]');
-    expect(tooltip.style.opacity).toBe('1');
-    expect(tooltip.style.visibility).toBe('visible');
-  });
-
-  it('tooltip hides on mouseleave', () => {
-    createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    btn.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-    const tooltip = btn.querySelector('[data-dobby-tooltip]');
-    expect(tooltip.style.opacity).toBe('0');
-    expect(tooltip.style.visibility).toBe('hidden');
-  });
-
-  it('tooltip auto-hides after 2 seconds', () => {
-    vi.useFakeTimers();
-    createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const tooltip = btn.querySelector('[data-dobby-tooltip]');
-    expect(tooltip.style.opacity).toBe('1');
-    vi.advanceTimersByTime(2100);
-    expect(tooltip.style.opacity).toBe('0');
-    expect(tooltip.style.visibility).toBe('hidden');
-    vi.useRealTimers();
-  });
-
-  it('tooltip has pointer-events none', () => {
-    createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    const tooltip = btn.querySelector('[data-dobby-tooltip]');
-    expect(tooltip.style.pointerEvents).toBe('none');
-  });
-
-  it('tooltip has downward caret', () => {
-    createTriggerButton();
-    const btn = document.getElementById('dobby-ai-trigger');
-    const tooltip = btn.querySelector('[data-dobby-tooltip]');
-    const caret = tooltip.querySelector('[data-dobby-tooltip-caret]');
-    expect(caret).not.toBeNull();
+    const host = getHost();
+    const shadow = host.shadowRoot;
+    const icon = shadow.querySelector('.toolbar-icon');
+    expect(icon).not.toBeNull();
   });
 });

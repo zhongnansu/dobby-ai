@@ -1,6 +1,6 @@
 // e2e/history.spec.js — Chat history panel UI
 const { test, expect } = require('@playwright/test');
-const { launchExtension, selectText, waitForBubble, clickInShadow, getTextInShadow, countInShadow, isVisibleInShadow } = require('./helpers');
+const { launchExtension, selectText, waitForToolbar, openBubbleViaToolbar, waitForBubble, clickInShadow, getTextInShadow, countInShadow, isVisibleInShadow } = require('./helpers');
 
 let context, extensionId, page;
 
@@ -19,11 +19,8 @@ test.beforeEach(async () => {
 
 test('history button opens history panel', async () => {
   await selectText(page, 'h1');
-
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
-  await trigger.click();
-  await waitForBubble(page);
+  await waitForToolbar(page);
+  await openBubbleViaToolbar(page);
 
   // Activate response section first (need it visible to access history button)
   await clickInShadow(page, '.preset-chip');
@@ -40,11 +37,8 @@ test('history button opens history panel', async () => {
 
 test('clear history shows empty state', async () => {
   await selectText(page, 'h1');
-
-  const trigger = page.locator('#dobby-ai-trigger');
-  await expect(trigger).toBeVisible({ timeout: 3000 });
-  await trigger.click();
-  await waitForBubble(page);
+  await waitForToolbar(page);
+  await openBubbleViaToolbar(page);
 
   await clickInShadow(page, '.preset-chip');
   await page.waitForTimeout(500);

@@ -42,6 +42,78 @@ async function selectText(page, selector) {
 }
 
 /**
+ * Wait for the toolbar host to appear.
+ */
+async function waitForToolbar(page) {
+  await page.waitForSelector('#dobby-ai-toolbar-host', { timeout: 5000 });
+}
+
+/**
+ * Hover over the toolbar host to expand it.
+ */
+async function hoverToolbar(page) {
+  const host = page.locator('#dobby-ai-toolbar-host');
+  await host.hover();
+  // Wait for expanded state
+  await page.waitForFunction(() => {
+    const h = document.getElementById('dobby-ai-toolbar-host');
+    if (!h || !h.shadowRoot) return false;
+    const toolbar = h.shadowRoot.querySelector('.toolbar');
+    return toolbar && toolbar.classList.contains('expanded');
+  }, { timeout: 3000 });
+}
+
+/**
+ * Open the full bubble via toolbar: hover → click "More" → click "Custom prompt..."
+ * Replaces the old "click trigger" flow for tests that need the bubble.
+ */
+async function openBubbleViaToolbar(page) {
+  await hoverToolbar(page);
+
+  // Click the "More" button inside the toolbar shadow DOM
+  await page.evaluate(() => {
+    const h = document.getElementById('dobby-ai-toolbar-host');
+    if (!h || !h.shadowRoot) throw new Error('No toolbar host found');
+    const moreBtn = h.shadowRoot.querySelector('.toolbar-more');
+    if (!moreBtn) throw new Error('.toolbar-more not found in shadow DOM');
+    moreBtn.click();
+  });
+
+  // Wait for popover to open
+  await page.waitForFunction(() => {
+    const h = document.getElementById('dobby-ai-toolbar-host');
+    if (!h || !h.shadowRoot) return false;
+    const popover = h.shadowRoot.querySelector('.toolbar-popover');
+    return popover && popover.classList.contains('open');
+  }, { timeout: 3000 });
+
+  // Click "Custom prompt..." item
+  await page.evaluate(() => {
+    const h = document.getElementById('dobby-ai-toolbar-host');
+    if (!h || !h.shadowRoot) throw new Error('No toolbar host found');
+    const customItem = h.shadowRoot.querySelector('.toolbar-popover-item.custom-prompt');
+    if (!customItem) throw new Error('.toolbar-popover-item.custom-prompt not found');
+    customItem.click();
+  });
+
+  // Wait for the full bubble to appear
+  await page.waitForSelector('#dobby-ai-bubble', { timeout: 5000 });
+}
+
+/**
+ * Click a preset action in the expanded toolbar by index.
+ */
+async function clickToolbarPreset(page, index) {
+  await page.evaluate((idx) => {
+    const h = document.getElementById('dobby-ai-toolbar-host');
+    if (!h || !h.shadowRoot) throw new Error('No toolbar host found');
+    const actions = h.shadowRoot.querySelectorAll('.toolbar-action');
+    if (!actions[idx]) throw new Error(`Toolbar action at index ${idx} not found`);
+    actions[idx].click();
+  }, index);
+}
+
+/**
  * Wait for the bubble to appear.
  */
 async function waitForBubble(page) {
@@ -144,6 +216,10 @@ async function countInShadow(page, selector) {
 module.exports = {
   launchExtension,
   selectText,
+  waitForToolbar,
+  hoverToolbar,
+  openBubbleViaToolbar,
+  clickToolbarPreset,
   waitForBubble,
   waitForStreamingStarted,
   clickInShadow,
