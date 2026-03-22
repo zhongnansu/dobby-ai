@@ -21,6 +21,15 @@ export let dobbyEnabled = true;
 export function setTriggerButton(v) { triggerButton = v; }
 export function setDobbyEnabled(v) { dobbyEnabled = v; }
 
+// Toolbar state
+export let toolbarHost = null;
+export let toolbarState = 'collapsed'; // 'collapsed' | 'expanded' | 'morphed'
+export let popoverOpen = false;
+
+export function setToolbarHost(host) { toolbarHost = host; }
+export function setToolbarState(state) { toolbarState = state; }
+export function setPopoverOpen(val) { popoverOpen = val; }
+
 // Screenshot state
 export const screenshotState = {
   overlay: null,
