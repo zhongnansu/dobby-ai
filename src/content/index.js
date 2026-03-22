@@ -7,6 +7,7 @@ import { hideTrigger } from './trigger/button.js';
 import { showBubbleWithPresets, showBubble, hideBubble, getBubbleContainer } from './bubble/core.js';
 import { buildChatMessages } from './prompt.js';
 import { captureImage } from './image-capture.js';
+import { isClickInsideUI } from './shared/dom-utils.js';
 
 // Load initial enabled state
 chrome.storage.local.get('dobbyEnabled', (data) => {
@@ -55,8 +56,7 @@ setTimeout(() => {
   document.addEventListener('mousedown', (e) => {
     const bubble = getBubbleContainer();
     if (bubble && !bubble.contains(e.target)) {
-      const trigger = document.getElementById('dobby-ai-trigger');
-      if (trigger && trigger.contains(e.target)) return;
+      if (isClickInsideUI(e.target, getBubbleContainer)) return;
       if (bubble._isPinned) return;
       hideBubble();
     }

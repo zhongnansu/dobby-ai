@@ -52,6 +52,23 @@ vi.mock('../src/content/shared/state.js', () => ({
   setDobbyEnabled: vi.fn(),
 }));
 
+vi.mock('../src/content/shared/dom-utils.js', () => ({
+  isClickInsideUI: vi.fn((target, getBubble) => {
+    // Check trigger by id
+    const trigger = document.getElementById('dobby-ai-trigger');
+    if (trigger && trigger.contains(target)) return true;
+    // Check toolbar host by id
+    const toolbarHost = document.getElementById('dobby-ai-toolbar-host');
+    if (toolbarHost && toolbarHost.contains(target)) return true;
+    // Check bubble
+    if (typeof getBubble === 'function') {
+      const bc = getBubble();
+      if (bc && bc.contains(target)) return true;
+    }
+    return false;
+  }),
+}));
+
 const { showBubble, showBubbleWithPresets, hideBubble, getBubbleContainer } = await import('../src/content/bubble/core.js');
 const { buildChatMessages } = await import('../src/content/prompt.js');
 const { captureImage } = await import('../src/content/image-capture.js');
@@ -220,6 +237,24 @@ describe('content/index.js', () => {
 
       const event = new MouseEvent('mousedown', { bubbles: true });
       Object.defineProperty(event, 'target', { value: outsideTarget });
+      document.dispatchEvent(event);
+
+      expect(hideBubble).not.toHaveBeenCalled();
+    });
+
+    it('does not call hideBubble when clicking the toolbar host', async () => {
+      const bubbleEl = document.createElement('div');
+      document.body.appendChild(bubbleEl);
+      getBubbleContainer.mockReturnValue(bubbleEl);
+
+      const toolbarHost = document.createElement('div');
+      toolbarHost.id = 'dobby-ai-toolbar-host';
+      document.body.appendChild(toolbarHost);
+
+      await new Promise((r) => setTimeout(r, 150));
+
+      const event = new MouseEvent('mousedown', { bubbles: true });
+      Object.defineProperty(event, 'target', { value: toolbarHost });
       document.dispatchEvent(event);
 
       expect(hideBubble).not.toHaveBeenCalled();
