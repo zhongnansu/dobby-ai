@@ -14,34 +14,43 @@ The toolbar has three states, all rendered as **one continuous DOM element** tha
 
 ### State 1: Collapsed (icon only)
 - Identical to today's trigger button: 32px purple circle with Dobby icon
-- Appears on text selection (same `mouseup`/`selectionchange` listeners)
+- Appears on text selection (same `mouseup`/`selectionchange` listeners in `selection.js`)
 - Auto-hides after 3 seconds if not interacted with
 - Does NOT appear inside input/textarea elements
 
 ### State 2: Expanded (hover)
 - On `mouseenter`, toolbar width animates from 32px to fit content (~200px)
 - Shows: `[icon] | [Preset 1] [Preset 2] | [...]`
-- Presets determined by `detectContentType()` → `getSuggestedPresetsForType()`, taking the first 2
+- Presets determined lazily on hover: calls `detectContentType(selectedText, anchorNode)` → `getSuggestedPresetsForType()`, taking the first 2. The `anchorNode` and `selectedText` are captured at trigger-show time (in `showTrigger`) and stored on the toolbar element as data attributes.
+- If only 1 suggested preset exists, show 1 button + "more" menu. If 0 suggested (shouldn't happen — `default` always returns 2), fall back to Summarize/Explain.
 - Action buttons are compact: 12px font, 4px padding, icon + label
 - "More" button (three dots) opens a popover above the toolbar
 - On `mouseleave`, collapses back to icon-only (unless popover is open)
 - Hover pauses the auto-hide timer
+- **Overflow:** set to `visible` when popover is open (popover renders above the toolbar in expanded state)
 
 ### State 3: Morphed (chat bubble)
 - On preset click, the toolbar element expands: width → 360px, height → ~210px, border-radius → 14px
-- The action buttons fade out; a chat header ("Dobby AI" + preset label + close button) and streaming response body fade in
-- Response streams via the existing `startStreaming()` → `requestChat()` pipeline
-- Close button (X) collapses back to icon state and restarts auto-hide
+- The action buttons fade out; a chat header and streaming response body fade in
+- **Morphed DOM structure:** `[icon (shrunk to 22px)] [title: "Dobby AI"] [label badge] [close X]` as the header row, then a scrollable body div for the streamed response
+- Response streams via the existing `startStreaming()` → `requestChat()` pipeline (imported from `bubble/stream.js`)
+- **Auto-hide is cancelled** on morph. It is not restarted until `unmorphToolbar()` collapses back to icon state.
+- Close button (X) cancels any active stream, collapses back to icon state, and restarts auto-hide
+- **Error handling:** On stream error or rate limit, display a compact error message in the morph body (same text as bubble errors, no retry button — user can close and retry). Rate-limit status text reuses existing `getRateLimitStatus()`.
 
 ### "More" Popover
-- Opens above the toolbar on three-dots click
+- Opens above the toolbar on three-dots click (in expanded state)
 - Lists remaining presets from `getSuggestedPresetsForType()` (those not shown in the toolbar)
-- Final item: "Custom prompt..." which triggers `showBubbleWithPresets()` (existing full bubble UI)
+- Final item: "Custom prompt..." which calls the existing `showBubbleWithPresets()` from `bubble/core.js` (already exported, not new)
 - Clicking a popover preset triggers the same morph-to-chat flow
 
 ## Implementation Approach
 
-The toolbar is an **evolution of the existing trigger button**, not a rewrite. The current `createTriggerButton()` in `button.js` already creates a positioned, styled element with click handling — the toolbar extends this with two additional states (expanded, morphed). All styling goes through the existing `getStyles()` pattern, all UI lives in the existing Shadow DOM, and streaming reuses the existing `startStreaming()` → `requestChat()` pipeline in `bubble/core.js`.
+The toolbar is an **evolution of the existing trigger button**, not a rewrite. The current `createTriggerButton()` in `button.js` already creates a positioned, styled element with click handling — the toolbar extends this with two additional states (expanded, morphed).
+
+The toolbar gets its **own Shadow DOM host** (like the bubble has its own). This provides style isolation and follows the existing pattern where `bubble/core.js` creates a Shadow DOM host for the bubble. The toolbar's styles are defined in a new `trigger/styles.js` file following the same `getStyles(theme)` pattern.
+
+Streaming in the morphed state imports `startStreaming` and `requestChat` from `bubble/stream.js` and `api.js` directly — no need to extract `activateResponseSection` from `core.js`. The morphed state manages its own DOM elements for the response body.
 
 The mockup (`mockups/toolbar-proposal.html`) is a standalone design reference only — implementation must use the real codebase patterns (Shadow DOM, `getStyles()`, `chrome.runtime.connect`, etc.), not copy mockup HTML/CSS.
 
@@ -51,24 +60,46 @@ The mockup (`mockups/toolbar-proposal.html`) is a standalone design reference on
 
 | File | Changes |
 |------|---------|
-| `src/content/trigger/button.js` | Evolve existing `createTriggerButton()` into `createToolbar()`. The current button becomes the collapsed state; add expand/collapse/morph logic on top. Reuse existing positioning, z-index, and tooltip patterns. New functions: `expandToolbar()`, `collapseToolbar()`, `morphIntoBubble()`, `unmorphToolbar()`. |
-| `src/content/trigger/selection.js` | Update `showTrigger()` to call `createToolbar()` instead of `createTriggerButton()`. Pass `detectContentType()` result to determine presets. |
-| `src/content/bubble/core.js` | Extract `activateResponseSection()` and streaming setup into a reusable function that the toolbar's morphed state can call. Add `showBubbleWithPresets()` export for "Custom prompt..." flow. |
-| `src/content/bubble/styles.js` | Add toolbar styles to `getStyles()`: collapsed, expanded, morphed states, popover, action buttons. |
+| `src/content/trigger/button.js` | Evolve `createTriggerButton()` into `createToolbar()`. The current button becomes the collapsed state. `showTrigger(x, y)` gains a third parameter: `{text, anchorNode}` captured from the selection. New functions: `expandToolbar()`, `collapseToolbar()`, `morphIntoBubble(presetLabel, messages)`, `unmorphToolbar()`. Toolbar is wrapped in its own Shadow DOM host. |
+| `src/content/trigger/styles.js` | **New file.** `getToolbarStyles(theme)` returns CSS string for all toolbar states (collapsed, expanded, morphed), popover, action buttons. Follows the same pattern as `bubble/styles.js`. |
+| `src/content/trigger/selection.js` | Update calls to `showTrigger()` to pass `{text, anchorNode}` from the current selection. Content detection happens lazily on hover, not at trigger-show time. |
+| `src/content/bubble/core.js` | No extraction needed. The toolbar imports `startStreaming`/`requestChat` directly from `stream.js`/`api.js`. The existing `showBubbleWithPresets()` (already exported) is called for "Custom prompt..." flow. |
+| `src/content/index.js` | Update click-outside dismiss logic to also check if click is inside the toolbar's Shadow DOM host. Import `isClickInsideToolbar()` check. |
 | `src/content/shared/constants.js` | Add `TIMING.TOOLBAR_AUTO_HIDE = 3000`, `TIMING.TOOLBAR_EXPAND_DURATION = 220`. |
-| `src/content/shared/state.js` | Add `toolbarState` ('collapsed' | 'expanded' | 'morphed'), `popoverOpen` flag. |
+| `src/content/shared/state.js` | Add `toolbarState` ('collapsed' \| 'expanded' \| 'morphed'), `popoverOpen` flag. |
+| `src/content/shared/dom-utils.js` | Update `isClickInsideUI()` to also check for the toolbar's Shadow DOM host element. |
 
 ### Files NOT Changed
 
-- `background.js`, `api.js`, `prompt.js`, `detection.js`, `presets.js` — no changes needed. The toolbar reuses existing content detection, preset selection, prompt building, and streaming pipeline.
+- `background.js`, `api.js`, `prompt.js`, `detection.js`, `presets.js`, `bubble/styles.js`, `bubble/stream.js` — no changes needed. The toolbar reuses these modules as-is.
+
+### Data Flow
+
+```
+Selection → showTrigger(x, y, {text, anchorNode})
+  → createToolbar() [collapsed, stores text + anchorNode]
+
+Hover (mouseenter):
+  → expandToolbar()
+  → detectContentType(text, anchorNode) → getSuggestedPresetsForType(type)
+  → render 2 preset buttons + "more"
+
+Click preset:
+  → buildMessages(presetInstruction, text) [via prompt.js]
+  → morphIntoBubble(label, messages)
+  → requestChat(messages) → stream tokens into morph body
+
+Close (X):
+  → cancel stream → unmorphToolbar() → collapsed state → restart auto-hide
+```
 
 ### Key Constraints
 
-- All UI in Shadow DOM (existing pattern)
-- Styles via `getStyles()` in JS (existing pattern)
-- Toolbar element is absolutely positioned, z-index 2147483647 (existing constant)
-- Must not conflict with long-press screenshot mode (guard via `isInteractiveElement()`)
-- `overflow: hidden` on the toolbar during collapsed/expanded states; switched to `visible` when morphed (to allow popover to render above)
+- Toolbar in its own Shadow DOM host (style isolation, same pattern as bubble)
+- Styles via `getToolbarStyles(theme)` in `trigger/styles.js`
+- Toolbar host is absolutely positioned, z-index 2147483647 (existing `Z_INDEX.TRIGGER` constant)
+- Must not conflict with long-press screenshot mode (existing `isInteractiveElement()` guard)
+- `overflow: visible` when popover is open or in morphed state; `hidden` otherwise
 
 ## CSS Transitions
 
@@ -85,19 +116,18 @@ Action buttons and chat content use `opacity` transitions (0.15s) for crossfade.
 ### Unit Tests (vitest + jsdom)
 - `tests/toolbar.test.js` — new file:
   - Toolbar creation and positioning
-  - Hover expand/collapse state transitions
+  - Hover expand/collapse state transitions (use fake timers)
+  - Correct presets shown per content type
   - Morph into bubble on preset click
-  - Unmorph on close click
-  - Auto-hide timer (3s) with fake timers
-  - Hover pauses auto-hide
+  - Unmorph on close click, stream cancellation
+  - Auto-hide timer (3s): fires when collapsed, pauses on hover, cancelled when morphed
   - Popover open/close
   - "Custom prompt..." triggers `showBubbleWithPresets()`
   - Does not appear inside input/textarea
-  - Correct presets shown per content type (delegates to existing detection)
+  - Error display in morphed state on stream failure
 
 ### Existing Tests
-- `tests/trigger.test.js` — update: trigger now creates toolbar instead of button
-- `tests/bubble.test.js` — update if `activateResponseSection` is extracted
+- `tests/trigger.test.js` — update: trigger now creates toolbar instead of button, `showTrigger` signature changes
 
 ### Coverage
 - Target: 80%+ on new code (CI threshold)
@@ -108,9 +138,15 @@ Action buttons and chat content use `opacity` transitions (0.15s) for crossfade.
 
 2. **Hover to expand vs. click to expand** — Hover is faster (zero clicks to see options) and matches the "don't interrupt the user's flow" principle. The icon footprint when not hovered is identical to today.
 
-3. **2 presets in toolbar, rest in popover** — Keeps the toolbar compact (~200px) so it doesn't obscure content. The 2 shown are the highest-confidence suggestions from `detectContentType()`.
+3. **Own Shadow DOM host** — The toolbar needs style isolation just like the bubble. Creating its own Shadow DOM host follows the existing pattern and avoids inline-style sprawl.
 
-4. **"Custom prompt..." opens existing bubble** — Reuses the full `showBubbleWithPresets()` UI for custom text input, avoiding reimplementation of the text input + all-presets-chips view inside the toolbar.
+4. **Lazy content detection on hover** — Detecting content type on hover (not on trigger show) avoids unnecessary computation when the user ignores the trigger. The `anchorNode` is captured at show time and stored for later use.
+
+5. **2 presets in toolbar, rest in popover** — Keeps the toolbar compact (~200px) so it doesn't obscure content. The 2 shown are the highest-confidence suggestions from `getSuggestedPresetsForType()`.
+
+6. **"Custom prompt..." opens existing bubble** — Reuses the full `showBubbleWithPresets()` UI for custom text input, avoiding reimplementation.
+
+7. **Direct streaming import, no extraction** — The morphed state imports `requestChat` directly from `api.js` and manages its own response DOM, avoiding fragile extraction of bubble internals.
 
 ## Mockup
 
