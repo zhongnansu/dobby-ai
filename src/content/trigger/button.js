@@ -243,11 +243,17 @@ function morphIntoBubble(host, shadow, label, instruction) {
   const images = host._images || null;
   const messages = buildChatMessages(text, instruction, true, images);
 
-  // Hide toolbar instantly — bubble replaces it at the same spot
-  hideTrigger();
-
-  // Open the full bubble — appears to grow from where the toolbar was
+  // Crossfade: open bubble FIRST, then fade out toolbar on top
+  // This avoids the blink — toolbar stays visible while bubble appears underneath
   showBubble(selectionRect, messages, text, instruction, images);
+
+  // Fade out toolbar smoothly over the same duration as bubble entry animation
+  toolbar.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+  toolbar.style.opacity = '0';
+  toolbar.style.transform = 'scale(0.9)';
+
+  // Remove toolbar after fade completes
+  setTimeout(() => hideTrigger(), 220);
 }
 
 // --- Popover ---
