@@ -223,12 +223,16 @@ function morphIntoBubble(host, shadow, label, instruction) {
   closePopover(shadow);
   clearAutoHide();
 
-  // Get toolbar position for bubble placement
+  // Get toolbar position — bubble will appear growing from here
   const hostRect = host.getBoundingClientRect();
+
+  // Pass a rect that positions the bubble at the toolbar's origin.
+  // createBubbleHost places bubble at selectionRect.bottom + 8,
+  // so we set bottom = toolbar.top - 8 so the bubble top = toolbar.top.
   const selectionRect = {
-    top: hostRect.top,
+    top: hostRect.top - 16,
     right: hostRect.right,
-    bottom: hostRect.bottom,
+    bottom: hostRect.top - 8,
     left: hostRect.left,
     width: hostRect.width,
     height: hostRect.height,
@@ -239,17 +243,11 @@ function morphIntoBubble(host, shadow, label, instruction) {
   const images = host._images || null;
   const messages = buildChatMessages(text, instruction, true, images);
 
-  // Fade out toolbar while opening the full bubble at the same position
-  toolbar.style.opacity = '0';
-  toolbar.style.transform = 'scale(0.95)';
-  toolbar.style.transition = 'opacity 0.15s, transform 0.15s';
+  // Hide toolbar instantly — bubble replaces it at the same spot
+  hideTrigger();
 
-  // Open the full bubble immediately — it has its own entry animation
-  // Inherits ALL features: follow-up input, history, pin, resize, etc.
+  // Open the full bubble — appears to grow from where the toolbar was
   showBubble(selectionRect, messages, text, instruction, images);
-
-  // Clean up toolbar after fade
-  setTimeout(() => hideTrigger(), 180);
 }
 
 // --- Popover ---
