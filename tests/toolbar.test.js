@@ -52,8 +52,7 @@ vi.mock('../src/content/prompt.js', () => ({
 setupChromeMocks();
 
 const { showTrigger, hideTrigger, extractImagesFromSelection } = await import('../src/content/trigger/button.js');
-const { showBubbleWithPresets } = await import('../src/content/bubble/core.js');
-const { requestChat } = await import('../src/content/api.js');
+const { showBubbleWithPresets, showBubble } = await import('../src/content/bubble/core.js');
 const { detectContentType } = await import('../src/content/detection.js');
 const { getSuggestedPresetsForType } = await import('../src/content/presets.js');
 const { buildChatMessages } = await import('../src/content/prompt.js');
@@ -209,21 +208,6 @@ describe('hover expand/collapse', () => {
     expect(toolbar.classList.contains('expanded')).toBe(true);
   });
 
-  it('does not collapse when in morphed state', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-
-    // Click a preset to morph
-    const action = shadow.querySelector('.toolbar-action');
-    action.click();
-
-    toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-    expect(toolbar.classList.contains('morphed')).toBe(true);
-  });
-
   it('shows more button alongside preset buttons', () => {
     showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
@@ -275,38 +259,10 @@ describe('auto-hide timer', () => {
     expect(getToolbarHost()).toBeNull();
   });
 
-  it('auto-hide is cancelled when morphed', () => {
-    vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    // Expand and click preset
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const action = shadow.querySelector('.toolbar-action');
-    action.click();
-
-    // Auto-hide should not fire
-    vi.advanceTimersByTime(5000);
-    expect(getToolbarHost()).not.toBeNull();
-    expect(toolbar.classList.contains('morphed')).toBe(true);
-  });
 });
 
-describe('morph into bubble on preset click', () => {
-  it('morphs on preset button click', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const action = shadow.querySelector('.toolbar-action');
-    action.click();
-
-    expect(toolbar.classList.contains('morphed')).toBe(true);
-  });
-
-  it('shows morph header with label and close button', () => {
+describe('preset click opens bubble', () => {
+  it('calls showBubble with correct arguments on preset button click', () => {
     showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
@@ -314,17 +270,23 @@ describe('morph into bubble on preset click', () => {
     toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
-    const title = shadow.querySelector('.morph-title');
-    expect(title.textContent).toBe('Dobby AI');
-
-    const label = shadow.querySelector('.morph-label');
-    expect(label.textContent).toBe('Summarize');
-
-    const closeBtn = shadow.querySelector('.morph-close');
-    expect(closeBtn).not.toBeNull();
+    expect(showBubble).toHaveBeenCalledTimes(1);
+    const args = showBubble.mock.calls[0];
+    // arg 0: selectionRect (object with top/left/etc.)
+    expect(args[0]).toHaveProperty('top');
+    expect(args[0]).toHaveProperty('left');
+    // arg 1: messages array from buildChatMessages
+    expect(args[1]).toEqual([
+      { role: 'system', content: 'You are Dobby AI' },
+      { role: 'user', content: 'Summarize the following:\n\ntest text' },
+    ]);
+    // arg 2: selected text
+    expect(args[2]).toBe('test text');
+    // arg 3: instruction
+    expect(args[3]).toBe('Summarize the following');
   });
 
-  it('calls buildChatMessages and requestChat on morph', () => {
+  it('calls buildChatMessages with text, instruction, and true', () => {
     showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
@@ -332,38 +294,10 @@ describe('morph into bubble on preset click', () => {
     toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
-    expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true);
-    expect(requestChat).toHaveBeenCalled();
+    expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true, null);
   });
 
-  it('hides toolbar-expand when morphed', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-
-    expect(toolbar.classList.contains('expanded')).toBe(false);
-  });
-});
-
-describe('close button / unmorphToolbar', () => {
-  it('unmorphs back to collapsed on close button click', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-    expect(toolbar.classList.contains('morphed')).toBe(true);
-
-    shadow.querySelector('.morph-close').click();
-    expect(toolbar.classList.contains('morphed')).toBe(false);
-    expect(toolbar.classList.contains('expanded')).toBe(false);
-  });
-
-  it('restarts auto-hide after unmorph', () => {
+  it('removes toolbar after preset click', () => {
     vi.useFakeTimers();
     showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
@@ -372,11 +306,8 @@ describe('close button / unmorphToolbar', () => {
     toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
-    // Unmorph
-    shadow.querySelector('.morph-close').click();
-
-    // Auto-hide should now be active
-    vi.advanceTimersByTime(3100);
+    // Toolbar is removed after 180ms fade-out
+    vi.advanceTimersByTime(200);
     expect(getToolbarHost()).toBeNull();
   });
 });
@@ -442,7 +373,7 @@ describe('popover', () => {
     expect(showBubbleWithPresets).toHaveBeenCalled();
   });
 
-  it('clicking a popover preset triggers morph state', () => {
+  it('clicking a popover preset calls showBubble', () => {
     showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
@@ -454,96 +385,11 @@ describe('popover', () => {
     // Click the first non-custom item
     items[0].click();
 
-    expect(toolbar.classList.contains('morphed')).toBe(true);
-  });
-});
-
-describe('streaming in morphed state', () => {
-  it('shows stream text area in morphed state', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-
-    const streamText = shadow.querySelector('.stream-text');
-    expect(streamText).not.toBeNull();
-  });
-
-  it('displays typing cursor while streaming', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-
-    const cursor = shadow.querySelector('.typing-cursor');
-    expect(cursor).not.toBeNull();
-  });
-
-  it('handles onToken callback by appending text', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-
-    // requestChat was called with callbacks - invoke onToken
-    const onToken = requestChat.mock.calls[0][1];
-    onToken('Hello ');
-    onToken('world');
-
-    const streamText = shadow.querySelector('.stream-text');
-    expect(streamText.textContent).toContain('Hello ');
-    expect(streamText.textContent).toContain('world');
-  });
-
-  it('handles onDone callback by removing cursor', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-
-    const onDone = requestChat.mock.calls[0][2];
-    onDone({ remaining: 10 });
-
-    const cursor = shadow.querySelector('.typing-cursor');
-    expect(cursor.classList.contains('hidden')).toBe(true);
-  });
-
-  it('handles onError callback by showing error message', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-
-    const onError = requestChat.mock.calls[0][3];
-    onError('ERROR', 'Something went wrong');
-
-    const streamText = shadow.querySelector('.stream-text');
-    expect(streamText.textContent).toContain('Something went wrong');
-  });
-
-  it('handles RATE_LIMITED error with specific message', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-action').click();
-
-    const onError = requestChat.mock.calls[0][3];
-    onError('RATE_LIMITED', 'Daily limit reached');
-
-    const streamText = shadow.querySelector('.stream-text');
-    expect(streamText.textContent).toContain('Rate limit reached');
+    expect(showBubble).toHaveBeenCalledTimes(1);
+    const args = showBubble.mock.calls[0];
+    expect(args[0]).toHaveProperty('top');
+    expect(args[2]).toBe('test text');
+    expect(args[3]).toBe('Translate the following to English');
   });
 });
 

@@ -37,19 +37,14 @@ test('open bubble via toolbar shows bubble with presets', async () => {
   expect(chipCount).toBeGreaterThan(0);
 });
 
-test('clicking toolbar preset morphs toolbar into chat', async () => {
+test('clicking toolbar preset opens full bubble', async () => {
   await selectText(page, 'h1');
   await waitForToolbar(page);
   await hoverToolbar(page);
   await clickToolbarPreset(page, 0);
 
-  // Toolbar should be in morphed state
-  await page.waitForFunction(() => {
-    const h = document.getElementById('dobby-ai-toolbar-host');
-    if (!h || !h.shadowRoot) return false;
-    const toolbar = h.shadowRoot.querySelector('.toolbar');
-    return toolbar && toolbar.classList.contains('morphed');
-  }, { timeout: 5000 });
+  // Full bubble should open (toolbar hides, bubble appears)
+  await waitForBubble(page);
 });
 
 test('close button dismisses bubble', async () => {

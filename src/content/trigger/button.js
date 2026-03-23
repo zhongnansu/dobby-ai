@@ -3,8 +3,7 @@
 //   collapsed (icon only) → expanded (hover, preset buttons) → morphed (inline chat)
 
 import { getToolbarStyles } from './styles.js';
-import { detectTheme } from '../bubble/core.js';
-import { requestChat } from '../api.js';
+import { detectTheme, showBubble } from '../bubble/core.js';
 import { buildChatMessages } from '../prompt.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import {
@@ -60,7 +59,6 @@ function clearAutoHide() {
 }
 
 // --- Active stream handle (isolated from shared state) ---
-let activeStreamHandle = null;
 
 // --- Toolbar creation ---
 
@@ -121,43 +119,7 @@ function createToolbar() {
   expandSection.appendChild(moreBtn);
 
   row.appendChild(expandSection);
-
-  // Morph header (visible in morphed state, hidden otherwise)
-  const morphHeader = document.createElement('div');
-  morphHeader.className = 'morph-header';
-
-  const morphTitle = document.createElement('span');
-  morphTitle.className = 'morph-title';
-  morphTitle.textContent = 'Dobby AI';
-  morphHeader.appendChild(morphTitle);
-
-  const morphLabel = document.createElement('span');
-  morphLabel.className = 'morph-label';
-  morphHeader.appendChild(morphLabel);
-
-  const morphClose = document.createElement('button');
-  morphClose.className = 'morph-close';
-  morphClose.textContent = '\u2715';
-  morphClose.title = 'Close';
-  morphHeader.appendChild(morphClose);
-
-  row.appendChild(morphHeader);
-
   toolbar.appendChild(row);
-
-  // Morph body (visible in morphed state)
-  const morphBody = document.createElement('div');
-  morphBody.className = 'morph-body';
-
-  const streamText = document.createElement('div');
-  streamText.className = 'stream-text';
-  morphBody.appendChild(streamText);
-
-  const cursor = document.createElement('span');
-  cursor.className = 'typing-cursor';
-  morphBody.appendChild(cursor);
-
-  toolbar.appendChild(morphBody);
 
   shadow.appendChild(toolbar);
 
@@ -185,11 +147,6 @@ function createToolbar() {
   moreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     togglePopover(host, shadow);
-  });
-
-  morphClose.addEventListener('click', (e) => {
-    e.stopPropagation();
-    unmorphToolbar(host, shadow);
   });
 
   document.body.appendChild(host);
@@ -264,80 +221,35 @@ function morphIntoBubble(host, shadow, label, instruction) {
 
   // Close popover if open
   closePopover(shadow);
-
-  // Transition from expanded to morphed
-  toolbar.classList.remove('expanded');
-  toolbar.classList.add('morphed');
-  setToolbarState('morphed');
   clearAutoHide();
 
-  // Set label
-  const morphLabel = shadow.querySelector('.morph-label');
-  morphLabel.textContent = label;
+  // Get toolbar position for bubble placement
+  const hostRect = host.getBoundingClientRect();
+  const selectionRect = {
+    top: hostRect.top,
+    right: hostRect.right,
+    bottom: hostRect.bottom,
+    left: hostRect.left,
+    width: hostRect.width,
+    height: hostRect.height,
+  };
 
-  // Clear stream text
-  const streamText = shadow.querySelector('.stream-text');
-  streamText.innerHTML = '';
-  const cursor = shadow.querySelector('.typing-cursor');
-  cursor.classList.remove('hidden');
-
-  // Build messages and start streaming
+  // Build messages
   const text = host._selectedText || '';
-  const messages = buildChatMessages(text, instruction, true);
+  const images = host._images || null;
+  const messages = buildChatMessages(text, instruction, true, images);
 
-  let responseBuffer = '';
+  // Fade out toolbar while opening the full bubble at the same position
+  toolbar.style.opacity = '0';
+  toolbar.style.transform = 'scale(0.95)';
+  toolbar.style.transition = 'opacity 0.15s, transform 0.15s';
 
-  const handle = requestChat(
-    messages,
-    // onToken
-    (token) => {
-      responseBuffer += token;
-      streamText.textContent = responseBuffer;
-    },
-    // onDone
-    (info) => {
-      cursor.classList.add('hidden');
-      activeStreamHandle = null;
-    },
-    // onError
-    (code, msg) => {
-      cursor.classList.add('hidden');
-      if (code === 'RATE_LIMITED') {
-        streamText.innerHTML = '<div class="morph-error">Rate limit reached</div>';
-      } else {
-        streamText.innerHTML = `<div class="morph-error">${escapeText(msg)}</div>`;
-      }
-      activeStreamHandle = null;
-    }
-  );
+  // Open the full bubble immediately — it has its own entry animation
+  // Inherits ALL features: follow-up input, history, pin, resize, etc.
+  showBubble(selectionRect, messages, text, instruction, images);
 
-  activeStreamHandle = handle;
-}
-
-function unmorphToolbar(host, shadow) {
-  const toolbar = shadow.querySelector('.toolbar');
-
-  // Cancel active stream
-  if (activeStreamHandle) {
-    activeStreamHandle.cancel();
-    activeStreamHandle = null;
-  }
-
-  toolbar.classList.remove('morphed');
-  setToolbarState('collapsed');
-
-  // Clear stream content
-  const streamText = shadow.querySelector('.stream-text');
-  streamText.innerHTML = '';
-  const cursor = shadow.querySelector('.typing-cursor');
-  cursor.classList.remove('hidden');
-
-  // Reset label
-  const morphLabel = shadow.querySelector('.morph-label');
-  morphLabel.textContent = '';
-
-  // Restart auto-hide
-  startAutoHide(host);
+  // Clean up toolbar after fade
+  setTimeout(() => hideTrigger(), 180);
 }
 
 // --- Popover ---
@@ -414,14 +326,6 @@ function closePopover(shadow) {
   setPopoverOpen(false);
 }
 
-// --- Utility ---
-
-function escapeText(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
 // --- Public API ---
 
 export function showTrigger(x, y, selectionData = {}) {
@@ -449,12 +353,6 @@ export function showTrigger(x, y, selectionData = {}) {
 
 export function hideTrigger() {
   clearAutoHide();
-
-  // Cancel active stream
-  if (activeStreamHandle) {
-    activeStreamHandle.cancel();
-    activeStreamHandle = null;
-  }
 
   const host = document.getElementById('dobby-ai-toolbar-host');
   if (host) {
