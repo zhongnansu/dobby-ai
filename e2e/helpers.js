@@ -64,36 +64,38 @@ async function hoverToolbar(page) {
 }
 
 /**
- * Open the full bubble via toolbar: hover → click "More" → click "Custom prompt..."
- * Replaces the old "click trigger" flow for tests that need the bubble.
+ * Open the full bubble via toolbar: hover → click pencil → type prompt → Enter
+ * Uses the inline custom prompt input to open the bubble.
  */
 async function openBubbleViaToolbar(page) {
   await hoverToolbar(page);
 
-  // Click the "More" button inside the toolbar shadow DOM
+  // Click the pencil button to enter input mode
   await page.evaluate(() => {
     const h = document.getElementById('dobby-ai-toolbar-host');
     if (!h || !h.shadowRoot) throw new Error('No toolbar host found');
-    const moreBtn = h.shadowRoot.querySelector('.toolbar-more');
-    if (!moreBtn) throw new Error('.toolbar-more not found in shadow DOM');
-    moreBtn.click();
+    const pencilBtn = h.shadowRoot.querySelector('.toolbar-pencil');
+    if (!pencilBtn) throw new Error('.toolbar-pencil not found in shadow DOM');
+    pencilBtn.click();
   });
 
-  // Wait for popover to open
+  // Wait for input mode
   await page.waitForFunction(() => {
     const h = document.getElementById('dobby-ai-toolbar-host');
     if (!h || !h.shadowRoot) return false;
-    const popover = h.shadowRoot.querySelector('.toolbar-popover');
-    return popover && popover.classList.contains('open');
+    const inputSection = h.shadowRoot.querySelector('.toolbar-input-section');
+    return inputSection && inputSection.classList.contains('visible');
   }, { timeout: 3000 });
 
-  // Click "Custom prompt..." item
+  // Type a prompt and submit
   await page.evaluate(() => {
     const h = document.getElementById('dobby-ai-toolbar-host');
     if (!h || !h.shadowRoot) throw new Error('No toolbar host found');
-    const customItem = h.shadowRoot.querySelector('.toolbar-popover-item.custom-prompt');
-    if (!customItem) throw new Error('.toolbar-popover-item.custom-prompt not found');
-    customItem.click();
+    const inputField = h.shadowRoot.querySelector('.toolbar-input-field');
+    if (!inputField) throw new Error('.toolbar-input-field not found');
+    inputField.value = 'Explain this';
+    inputField.dispatchEvent(new Event('input', { bubbles: true }));
+    inputField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   });
 
   // Wait for the full bubble to appear
