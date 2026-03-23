@@ -145,7 +145,7 @@ export function getToolbarStyles(theme) {
       background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
     }
 
-    /* Input mode container */
+    /* Input mode container — sits between dog icon and pencil/close button */
     .toolbar-input-section {
       display: flex;
       align-items: center;
@@ -156,7 +156,7 @@ export function getToolbarStyles(theme) {
       pointer-events: none;
       position: absolute;
       left: 37px;
-      right: 4px;
+      right: 34px;
       transition: opacity 0.15s ease;
     }
 
