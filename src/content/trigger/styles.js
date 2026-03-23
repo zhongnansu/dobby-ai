@@ -33,7 +33,7 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar.expanded {
-      width: var(--toolbar-expanded-width, 220px);
+      width: var(--toolbar-expanded-width, 260px);
       height: 36px;
       border-radius: 18px;
       overflow: visible;
@@ -45,6 +45,8 @@ export function getToolbarStyles(theme) {
       border-radius: 14px;
       overflow: visible;
       cursor: default;
+      background: ${isDark ? 'rgba(28, 25, 38, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+      box-shadow: 0 4px 24px ${isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.15)'}, 0 0 0 1px ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'};
     }
 
     .toolbar-row {
@@ -140,8 +142,8 @@ export function getToolbarStyles(theme) {
     .toolbar-more {
       background: none;
       border: none;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
-      font-size: 14px;
+      color: ${isDark ? '#a1a1aa' : '#52525b'};
+      font-size: 16px;
       line-height: 1;
       min-width: 28px;
       height: 28px;
@@ -226,6 +228,11 @@ export function getToolbarStyles(theme) {
       opacity: 1;
     }
 
+    .toolbar.morphed .toolbar-row {
+      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'};
+      padding: 0 4px;
+    }
+
     .morph-title {
       font-weight: 700;
       font-size: 13px;
@@ -235,9 +242,10 @@ export function getToolbarStyles(theme) {
 
     .morph-label {
       font-size: 11px;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
-      background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'};
-      padding: 1px 8px;
+      font-weight: 600;
+      color: ${isDark ? accentLight : accent};
+      background: ${isDark ? 'rgba(167,139,250,0.15)' : 'rgba(124,58,237,0.1)'};
+      padding: 2px 8px;
       border-radius: 6px;
       white-space: nowrap;
       overflow: hidden;
@@ -266,10 +274,10 @@ export function getToolbarStyles(theme) {
       display: none;
       flex: 1;
       overflow-y: auto;
-      padding: 8px 14px;
+      padding: 10px 14px;
       font-size: 13px;
-      line-height: 1.5;
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      line-height: 1.6;
+      color: ${isDark ? '#e4e4e7' : '#333'};
     }
 
     .toolbar.morphed .morph-body {

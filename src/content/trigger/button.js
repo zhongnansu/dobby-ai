@@ -116,7 +116,7 @@ function createToolbar() {
 
   const moreBtn = document.createElement('button');
   moreBtn.className = 'toolbar-more';
-  moreBtn.textContent = '\u2026'; // ellipsis
+  moreBtn.innerHTML = '&#x22EE;'; // vertical ellipsis ⋮
   moreBtn.title = 'More actions';
   expandSection.appendChild(moreBtn);
 
@@ -240,7 +240,13 @@ function expandToolbar(host, shadow) {
     actionsDiv.appendChild(btn);
   });
 
+  // Measure natural width and set CSS variable
+  toolbar.style.width = 'auto';
   toolbar.classList.add('expanded');
+  const naturalWidth = toolbar.scrollWidth;
+  toolbar.style.width = '';
+  toolbar.style.setProperty('--toolbar-expanded-width', Math.max(naturalWidth + 8, 180) + 'px');
+  // Re-add expanded class (was set above but width was auto)
   setToolbarState('expanded');
 }
 
