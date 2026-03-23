@@ -20,9 +20,9 @@ export function getToolbarStyles(theme) {
       height: 36px;
       border-radius: 50%;
       overflow: hidden;
-      background: ${isDark ? 'rgba(30, 30, 40, 0.85)' : 'rgba(255, 255, 255, 0.85)'};
-      backdrop-filter: blur(16px) saturate(180%);
-      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      background: ${isDark ? 'rgba(28, 25, 38, 0.82)' : 'rgba(255, 255, 255, 0.82)'};
+      backdrop-filter: blur(12px) saturate(180%);
+      -webkit-backdrop-filter: blur(12px) saturate(180%);
       border: 1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
       box-shadow: 0 2px 12px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'};
       cursor: pointer;
@@ -33,7 +33,7 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar.expanded {
-      width: var(--toolbar-expanded-width, 220px);
+      width: var(--toolbar-expanded-width, 260px);
       height: 36px;
       border-radius: 18px;
       overflow: visible;
@@ -45,6 +45,8 @@ export function getToolbarStyles(theme) {
       border-radius: 14px;
       overflow: visible;
       cursor: default;
+      background: ${isDark ? 'rgba(28, 25, 38, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+      box-shadow: 0 4px 24px ${isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.15)'}, 0 0 0 1px ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'};
     }
 
     .toolbar-row {
@@ -72,15 +74,19 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar.morphed .toolbar-icon {
-      width: 28px;
-      min-width: 28px;
-      height: 28px;
-      margin-left: 8px;
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      margin-left: 6px;
     }
 
     .toolbar.morphed .toolbar-icon img {
-      width: 22px;
-      height: 22px;
+      width: 26px;
+      height: 26px;
+    }
+
+    .toolbar.morphed .toolbar-row {
+      width: 100%;
     }
 
     .toolbar-expand {
@@ -97,6 +103,10 @@ export function getToolbarStyles(theme) {
     .toolbar.expanded .toolbar-expand {
       opacity: 1;
       pointer-events: auto;
+    }
+
+    .toolbar.morphed .toolbar-expand {
+      display: none;
     }
 
     .toolbar-sep {
@@ -132,14 +142,18 @@ export function getToolbarStyles(theme) {
     .toolbar-more {
       background: none;
       border: none;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
-      font-size: 14px;
+      color: ${isDark ? '#a1a1aa' : '#52525b'};
+      font-size: 16px;
+      line-height: 1;
+      min-width: 28px;
+      height: 28px;
       padding: 4px 6px;
       border-radius: 6px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
       transition: background 0.15s;
     }
 
@@ -153,6 +167,8 @@ export function getToolbarStyles(theme) {
       bottom: calc(100% + 6px);
       left: 0;
       min-width: 180px;
+      max-height: 260px;
+      overflow-y: auto;
       background: ${isDark ? 'rgba(30, 30, 40, 0.92)' : 'rgba(255, 255, 255, 0.92)'};
       backdrop-filter: blur(16px) saturate(180%);
       -webkit-backdrop-filter: blur(16px) saturate(180%);
@@ -165,6 +181,11 @@ export function getToolbarStyles(theme) {
 
     .toolbar-popover.open {
       display: block;
+    }
+
+    .toolbar-popover.popover-below {
+      bottom: auto;
+      top: calc(100% + 6px);
     }
 
     .toolbar-popover-item {
@@ -207,6 +228,11 @@ export function getToolbarStyles(theme) {
       opacity: 1;
     }
 
+    .toolbar.morphed .toolbar-row {
+      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'};
+      padding: 0 4px;
+    }
+
     .morph-title {
       font-weight: 700;
       font-size: 13px;
@@ -216,9 +242,10 @@ export function getToolbarStyles(theme) {
 
     .morph-label {
       font-size: 11px;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
-      background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'};
-      padding: 1px 8px;
+      font-weight: 600;
+      color: ${isDark ? accentLight : accent};
+      background: ${isDark ? 'rgba(167,139,250,0.15)' : 'rgba(124,58,237,0.1)'};
+      padding: 2px 8px;
       border-radius: 6px;
       white-space: nowrap;
       overflow: hidden;
@@ -247,10 +274,10 @@ export function getToolbarStyles(theme) {
       display: none;
       flex: 1;
       overflow-y: auto;
-      padding: 8px 14px;
+      padding: 10px 14px;
       font-size: 13px;
-      line-height: 1.5;
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      line-height: 1.6;
+      color: ${isDark ? '#e4e4e7' : '#333'};
     }
 
     .toolbar.morphed .morph-body {
