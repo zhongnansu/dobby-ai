@@ -6,7 +6,6 @@ import { setupChromeMocks } from './helpers.js';
 
 // Mock bubble/core.js
 vi.mock('../src/content/bubble/core.js', () => ({
-  showBubbleWithPresets: vi.fn(),
   showBubble: vi.fn(),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(() => null),
@@ -35,10 +34,6 @@ vi.mock('../src/content/presets.js', () => ({
     { label: 'Summarize', instruction: 'Summarize the following' },
     { label: 'Explain simply', instruction: 'Explain the following in simple terms' },
   ]),
-  getAllPresetsForType: vi.fn(() => [
-    { label: 'Translate', instruction: 'Translate the following to English' },
-    { label: 'Rewrite', instruction: 'Rewrite the following more clearly' },
-  ]),
 }));
 
 // Mock prompt.js
@@ -52,11 +47,11 @@ vi.mock('../src/content/prompt.js', () => ({
 setupChromeMocks();
 
 const { showTrigger, hideTrigger, extractImagesFromSelection } = await import('../src/content/trigger/button.js');
-const { showBubbleWithPresets, showBubble } = await import('../src/content/bubble/core.js');
+const { showBubble } = await import('../src/content/bubble/core.js');
 const { detectContentType } = await import('../src/content/detection.js');
 const { getSuggestedPresetsForType } = await import('../src/content/presets.js');
 const { buildChatMessages } = await import('../src/content/prompt.js');
-const { setToolbarHost, setToolbarState, setPopoverOpen } = await import('../src/content/shared/state.js');
+const { setToolbarHost, setToolbarState } = await import('../src/content/shared/state.js');
 
 function getToolbarHost() {
   return document.getElementById('dobby-ai-toolbar-host');
@@ -71,7 +66,6 @@ beforeEach(() => {
   document.body.innerHTML = '';
   setToolbarHost(null);
   setToolbarState('collapsed');
-  setPopoverOpen(false);
   vi.clearAllMocks();
 });
 
@@ -193,30 +187,19 @@ describe('hover expand/collapse', () => {
     expect(toolbar.classList.contains('expanded')).toBe(false);
   });
 
-  it('does not collapse when popover is open', () => {
+  it('does not collapse when in input mode', () => {
     showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
     toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
 
-    // Open popover
-    const moreBtn = shadow.querySelector('.toolbar-more');
-    moreBtn.click();
+    // Enter input mode by clicking pencil
+    const pencilBtn = shadow.querySelector('.toolbar-pencil');
+    pencilBtn.click();
 
     toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
     expect(toolbar.classList.contains('expanded')).toBe(true);
-  });
-
-  it('shows more button alongside preset buttons', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-
-    const moreBtn = shadow.querySelector('.toolbar-more');
-    expect(moreBtn).not.toBeNull();
   });
 });
 
@@ -259,6 +242,226 @@ describe('auto-hide timer', () => {
     expect(getToolbarHost()).toBeNull();
   });
 
+});
+
+describe('input mode', () => {
+  it('shows pencil button in expanded toolbar', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+
+    const pencilBtn = shadow.querySelector('.toolbar-pencil');
+    expect(pencilBtn).not.toBeNull();
+    expect(pencilBtn.title).toBe('Custom prompt');
+  });
+
+  it('enters input mode on pencil click — shows input, hides presets', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const inputSection = shadow.querySelector('.toolbar-input-section');
+    expect(inputSection.classList.contains('visible')).toBe(true);
+
+    const actionsDiv = shadow.querySelector('.toolbar-actions');
+    expect(actionsDiv.style.opacity).toBe('0');
+  });
+
+  it('pencil becomes close icon in input mode', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    const pencilBtn = shadow.querySelector('.toolbar-pencil');
+    pencilBtn.click();
+
+    expect(pencilBtn.classList.contains('close-mode')).toBe(true);
+    expect(pencilBtn.title).toBe('Cancel');
+  });
+
+  it('exits input mode on close button click — restores presets', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    const pencilBtn = shadow.querySelector('.toolbar-pencil');
+    pencilBtn.click(); // enter
+    pencilBtn.click(); // exit (now it's close button)
+
+    const inputSection = shadow.querySelector('.toolbar-input-section');
+    expect(inputSection.classList.contains('visible')).toBe(false);
+
+    const actionsDiv = shadow.querySelector('.toolbar-actions');
+    expect(actionsDiv.style.opacity).not.toBe('0');
+  });
+
+  it('exits input mode on Escape key', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const inputField = shadow.querySelector('.toolbar-input-field');
+    inputField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    const inputSection = shadow.querySelector('.toolbar-input-section');
+    expect(inputSection.classList.contains('visible')).toBe(false);
+  });
+
+  it('send button is disabled when input is empty', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const sendBtn = shadow.querySelector('.toolbar-send');
+    expect(sendBtn.classList.contains('disabled')).toBe(true);
+  });
+
+  it('send button enables when input has text', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const inputField = shadow.querySelector('.toolbar-input-field');
+    inputField.value = 'hello';
+    inputField.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const sendBtn = shadow.querySelector('.toolbar-send');
+    expect(sendBtn.classList.contains('disabled')).toBe(false);
+  });
+
+  it('Enter with empty input does not call showBubble', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const inputField = shadow.querySelector('.toolbar-input-field');
+    inputField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    expect(showBubble).not.toHaveBeenCalled();
+  });
+
+  it('Enter with text calls showBubble via morphIntoBubble', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const inputField = shadow.querySelector('.toolbar-input-field');
+    inputField.value = 'What does this mean?';
+    inputField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    expect(showBubble).toHaveBeenCalledTimes(1);
+    expect(buildChatMessages).toHaveBeenCalledWith('test text', 'What does this mean?', true, null);
+  });
+
+  it('send button click with text calls showBubble', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const inputField = shadow.querySelector('.toolbar-input-field');
+    inputField.value = 'Translate this';
+    const sendBtn = shadow.querySelector('.toolbar-send');
+    sendBtn.classList.remove('disabled');
+    sendBtn.click();
+
+    expect(showBubble).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto-hide is suppressed during input mode', () => {
+    vi.useFakeTimers();
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    vi.advanceTimersByTime(5000);
+    expect(getToolbarHost()).not.toBeNull();
+  });
+
+  it('mouseleave does not collapse during input mode', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(toolbar.classList.contains('expanded')).toBe(true);
+  });
+
+  it('click outside toolbar exits input mode', () => {
+    vi.useFakeTimers();
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    vi.advanceTimersByTime(1);
+
+    document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+    const inputSection = shadow.querySelector('.toolbar-input-section');
+    expect(inputSection.classList.contains('visible')).toBe(false);
+  });
+
+  it('send button click with empty input does not call showBubble', () => {
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const sendBtn = shadow.querySelector('.toolbar-send');
+    sendBtn.click();
+
+    expect(showBubble).not.toHaveBeenCalled();
+  });
+
+  it('auto-hide resumes after exiting input mode', () => {
+    vi.useFakeTimers();
+    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    const pencilBtn = shadow.querySelector('.toolbar-pencil');
+    pencilBtn.click();
+    pencilBtn.click();
+
+    vi.advanceTimersByTime(3100);
+    expect(getToolbarHost()).toBeNull();
+  });
 });
 
 describe('preset click opens bubble', () => {
@@ -309,87 +512,6 @@ describe('preset click opens bubble', () => {
     // Toolbar is removed after 220ms crossfade
     vi.advanceTimersByTime(250);
     expect(getToolbarHost()).toBeNull();
-  });
-});
-
-describe('popover', () => {
-  it('opens popover on more button click', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const moreBtn = shadow.querySelector('.toolbar-more');
-    moreBtn.click();
-
-    const popover = shadow.querySelector('.toolbar-popover');
-    expect(popover.classList.contains('open')).toBe(true);
-  });
-
-  it('closes popover on second click of more button', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const moreBtn = shadow.querySelector('.toolbar-more');
-
-    moreBtn.click(); // open
-    expect(shadow.querySelector('.toolbar-popover').classList.contains('open')).toBe(true);
-
-    moreBtn.click(); // close
-    expect(shadow.querySelector('.toolbar-popover').classList.contains('open')).toBe(false);
-  });
-
-  it('popover contains extra presets and custom prompt option', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-more').click();
-
-    const items = shadow.querySelectorAll('.toolbar-popover-item');
-    expect(items.length).toBeGreaterThanOrEqual(1);
-
-    // Last item should be "Custom prompt..."
-    const lastItem = items[items.length - 1];
-    expect(lastItem.textContent).toContain('Custom prompt');
-    expect(lastItem.classList.contains('custom-prompt')).toBe(true);
-  });
-
-  it('clicking custom prompt calls showBubbleWithPresets', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-more').click();
-
-    const items = shadow.querySelectorAll('.toolbar-popover-item');
-    const customItem = items[items.length - 1];
-    customItem.click();
-
-    expect(showBubbleWithPresets).toHaveBeenCalled();
-  });
-
-  it('clicking a popover preset calls showBubble', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
-    const shadow = getShadow();
-    const toolbar = shadow.querySelector('.toolbar');
-
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    shadow.querySelector('.toolbar-more').click();
-
-    const items = shadow.querySelectorAll('.toolbar-popover-item');
-    // Click the first non-custom item
-    items[0].click();
-
-    expect(showBubble).toHaveBeenCalledTimes(1);
-    const args = showBubble.mock.calls[0];
-    expect(args[0]).toHaveProperty('top');
-    expect(args[2]).toBe('test text');
-    expect(args[3]).toBe('Translate the following to English');
   });
 });
 
