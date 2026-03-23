@@ -15,6 +15,7 @@ import { showHistoryPanel } from './history.js';
 import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
+import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 
 export function detectTheme() {
   if (typeof window !== 'undefined' && window.matchMedia) {
@@ -307,6 +308,7 @@ export function showBubbleWithPresets(selectionRect, selectedText, anchorNode, i
     chip.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      recordPresetUsage(buildTypeKey(detected.type, detected.subType), preset.label);
       launchFromPreset(shadow, selectedText, preset.instruction, images);
     });
     chipsRow.appendChild(chip);

@@ -8,11 +8,15 @@ import { showBubbleWithPresets, showBubble, hideBubble, getBubbleContainer } fro
 import { buildChatMessages } from './prompt.js';
 import { captureImage } from './image-capture.js';
 import { isClickInsideUI } from './shared/dom-utils.js';
+import { loadUsageData } from './shared/preset-usage.js';
 
 // Load initial enabled state
 chrome.storage.local.get('dobbyEnabled', (data) => {
   setDobbyEnabled(data.dobbyEnabled !== false);
 });
+
+// Load preset usage data for reordering
+loadUsageData();
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'DOBBY_TOGGLE') {

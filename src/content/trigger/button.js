@@ -15,6 +15,7 @@ import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType, getAllPresetsForType } from '../presets.js';
 import { showBubbleWithPresets } from '../bubble/core.js';
 import { captureImage } from '../image-capture.js';
+import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 
 // --- Cockapoo icon SVG ---
 const cockapooSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
@@ -192,6 +193,7 @@ function expandToolbar(host, shadow) {
     btn.textContent = preset.label;
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      recordPresetUsage(buildTypeKey(detected.type, detected.subType), preset.label);
       morphIntoBubble(host, shadow, preset.label, preset.instruction);
     });
     actionsDiv.appendChild(btn);

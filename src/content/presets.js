@@ -1,6 +1,8 @@
 // Preset configurations per content type
 // Enhanced in v1.1: sub-type-specific instructions + new content types
 
+import { getReorderedPresets, buildTypeKey } from './shared/preset-usage.js';
+
 /**
  * PRESETS - Maps content type to suggested and additional presets
  * COMMON_PRESETS - Shared presets available for all content types
@@ -237,13 +239,15 @@ export const COMMON_PRESETS = [
  * @returns {Array<{label: string, instruction: string}>}
  */
 export function getSuggestedPresetsForType(contentType, subType) {
+  let presets;
   if (subType && contentType === 'code' && CODE_SUBTYPE_PRESETS[subType]) {
-    return CODE_SUBTYPE_PRESETS[subType].suggested;
+    presets = CODE_SUBTYPE_PRESETS[subType].suggested;
+  } else if (subType && contentType === 'foreign' && FOREIGN_SUBTYPE_PRESETS[subType]) {
+    presets = FOREIGN_SUBTYPE_PRESETS[subType].suggested;
+  } else {
+    presets = (PRESETS[contentType] || PRESETS['default']).suggested;
   }
-  if (subType && contentType === 'foreign' && FOREIGN_SUBTYPE_PRESETS[subType]) {
-    return FOREIGN_SUBTYPE_PRESETS[subType].suggested;
-  }
-  return (PRESETS[contentType] || PRESETS['default']).suggested;
+  return getReorderedPresets(presets, buildTypeKey(contentType, subType));
 }
 
 /**
