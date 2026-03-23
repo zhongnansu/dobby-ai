@@ -55,7 +55,9 @@ Dobby AI is a Chrome extension that brings AI directly into your browsing workfl
 - **Language-aware** — responds in the same language as your selected text
 - **Follow-up conversations** — ask follow-up questions within the same bubble, with full chat history
 - **Preset prompts** — one-click actions like "Explain", "Debug", "Summarize", "Translate"
-- **Custom instructions** — type any prompt to pair with your selection
+- **Custom instructions** — click the pencil icon to type any prompt inline
+
+![Custom prompt demo](https://raw.githubusercontent.com/zhongnansu/dobby-ai/docs/pr-demo-gifs/toolbar-custom-prompt.gif)
 
 ### UX
 - **Pin & drag** — pin the chat bubble and drag it anywhere on the page
