@@ -1,3 +1,13 @@
+import { vi } from 'vitest';
+
+// Mock preset-usage module — by default getReorderedPresets passes through
+vi.mock('../src/content/shared/preset-usage.js', () => ({
+  getReorderedPresets: vi.fn((presets) => presets),
+  buildTypeKey: vi.fn((type, subType) => (subType ? `${type}:${subType}` : type)),
+}));
+
+import { getReorderedPresets } from '../src/content/shared/preset-usage.js';
+
 import {
   PRESETS,
   COMMON_PRESETS,
@@ -255,5 +265,45 @@ describe('getAllPresetsForType', () => {
     expect(labels).toContain('Explain this image');
     expect(labels).toContain('Extract text from image');
     expect(labels).toContain('Translate text in image');
+  });
+});
+
+describe('getSuggestedPresetsForType with usage-based reordering', () => {
+  afterEach(() => {
+    vi.mocked(getReorderedPresets).mockImplementation((presets) => presets);
+  });
+
+  it('calls getReorderedPresets with the correct presets and typeKey', () => {
+    getSuggestedPresetsForType('code', 'javascript');
+    expect(getReorderedPresets).toHaveBeenCalledWith(
+      CODE_SUBTYPE_PRESETS.javascript.suggested,
+      'code:javascript',
+    );
+  });
+
+  it('calls getReorderedPresets for default type', () => {
+    getSuggestedPresetsForType('default', null);
+    expect(getReorderedPresets).toHaveBeenCalledWith(
+      PRESETS.default.suggested,
+      'default',
+    );
+  });
+
+  it('returns reordered results when getReorderedPresets reorders', () => {
+    const reordered = [
+      { label: 'Debug this', instruction: 'Debug the following JavaScript code and identify any issues' },
+      { label: 'Convert to TypeScript', instruction: 'Convert the following JavaScript code to TypeScript' },
+      { label: 'Explain this JavaScript', instruction: 'Explain the following JavaScript code' },
+    ];
+    vi.mocked(getReorderedPresets).mockReturnValueOnce(reordered);
+
+    const result = getSuggestedPresetsForType('code', 'javascript');
+    expect(result).toBe(reordered);
+    expect(result[0].label).toBe('Debug this');
+  });
+
+  it('returns original order when getReorderedPresets passes through', () => {
+    const result = getSuggestedPresetsForType('error', null);
+    expect(result).toEqual(PRESETS.error.suggested);
   });
 });
