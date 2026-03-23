@@ -8,12 +8,10 @@ import { buildChatMessages } from '../prompt.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import {
   setToolbarHost, setToolbarState, toolbarState,
-  popoverOpen, setPopoverOpen,
   triggerButton, setTriggerButton,
 } from '../shared/state.js';
 import { detectContentType } from '../detection.js';
-import { getSuggestedPresetsForType, getAllPresetsForType } from '../presets.js';
-import { showBubbleWithPresets } from '../bubble/core.js';
+import { getSuggestedPresetsForType } from '../presets.js';
 import { captureImage } from '../image-capture.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 
@@ -359,7 +357,10 @@ export function showTrigger(x, y, selectionData = {}) {
 
 export function hideTrigger() {
   clearAutoHide();
-
+  if (outsideClickHandler) {
+    document.removeEventListener('mousedown', outsideClickHandler, true);
+    outsideClickHandler = null;
+  }
   const host = document.getElementById('dobby-ai-toolbar-host');
   if (host) {
     host.remove();
@@ -367,7 +368,6 @@ export function hideTrigger() {
   setToolbarHost(null);
   setTriggerButton(null);
   setToolbarState('collapsed');
-  setPopoverOpen(false);
 }
 
 // --- Legacy compatibility: createTriggerButton maps to showTrigger ---
