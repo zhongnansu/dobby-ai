@@ -18,6 +18,7 @@ export function getStyles(theme) {
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      animation: bubble-enter 0.2s ease-out;
       background: ${isDark ? 'rgba(30, 30, 40, 0.85)' : 'rgba(255, 255, 255, 0.85)'};
       backdrop-filter: blur(16px) saturate(180%);
       -webkit-backdrop-filter: blur(16px) saturate(180%);
@@ -190,6 +191,10 @@ export function getStyles(theme) {
     }
     .cursor.blink { animation: blink 1s step-end infinite; }
     @keyframes blink { 50% { opacity: 0; } }
+    @keyframes bubble-enter {
+      from { opacity: 0; transform: scale(0.92) translateY(-8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
     .cursor.hidden { display: none; }
     .bubble-footer {
       display: flex;

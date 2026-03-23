@@ -34,6 +34,11 @@ Chrome extension (Manifest V3) using vanilla JS, no frameworks.
 - Squash merge via `gh pr merge <n> --squash`
 - Always use git worktrees for feature/fix branches — never work directly in the main checkout
 - Commit messages: `type: description` (feat/fix/test/ci/docs)
+- For UI/UX changes, Playwright visual verification is required BEFORE creating the PR:
+  1. Build the extension (`npm run build`)
+  2. Load in Playwright persistent context with the extension
+  3. Screenshot each visual state and verify correctness
+  4. Fix any visual issues before committing
 - UI/UX PRs must include a demo GIF in the description
   - Record via Playwright: `node scripts/record-demo.js demos/<scenario>.js /tmp/output.gif --framerate 5`
   - Push to `docs/pr-demo-gifs` branch (non-LFS, <800KB), reference via `raw.githubusercontent.com` URL
