@@ -306,8 +306,8 @@ describe('preset click opens bubble', () => {
     toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
-    // Toolbar is removed after 180ms fade-out
-    vi.advanceTimersByTime(200);
+    // Toolbar is removed after 220ms crossfade
+    vi.advanceTimersByTime(250);
     expect(getToolbarHost()).toBeNull();
   });
 });
