@@ -276,6 +276,7 @@ function morphIntoBubble(host, shadow, label, instruction) {
   const toolbar = shadow.querySelector('.toolbar');
 
   clearAutoHide();
+  removeSelectionHighlight();
 
   // Get toolbar position — bubble will appear growing from here
   const hostRect = host.getBoundingClientRect();
@@ -310,12 +311,52 @@ function morphIntoBubble(host, shadow, label, instruction) {
   setTimeout(() => hideTrigger(), 220);
 }
 
+// --- Selection highlight overlay ---
+// When input mode is active, the browser clears the page's text selection highlight
+// because focus moves to the shadow DOM input. These overlays preserve the visual highlight.
+
+let selectionHighlights = [];
+
+function showSelectionHighlight() {
+  removeSelectionHighlight();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const rects = range.getClientRects();
+  for (const rect of rects) {
+    if (rect.width === 0 || rect.height === 0) continue;
+    const div = document.createElement('div');
+    div.className = 'dobby-selection-highlight';
+    Object.assign(div.style, {
+      position: 'fixed',
+      left: rect.left + 'px',
+      top: rect.top + 'px',
+      width: rect.width + 'px',
+      height: rect.height + 'px',
+      background: 'rgba(124, 58, 237, 0.13)',
+      pointerEvents: 'none',
+      zIndex: '2147483646',
+      borderRadius: '2px',
+    });
+    document.body.appendChild(div);
+    selectionHighlights.push(div);
+  }
+}
+
+function removeSelectionHighlight() {
+  selectionHighlights.forEach(el => el.remove());
+  selectionHighlights = [];
+}
+
 // --- Input mode ---
 
 let outsideClickHandler = null;
 
 function enterInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
   clearAutoHide();
+
+  // Show highlight overlay before focus steals the visual selection
+  showSelectionHighlight();
 
   const expandSection = shadow.querySelector('.toolbar-expand');
   const actionsDiv = shadow.querySelector('.toolbar-actions');
@@ -349,6 +390,8 @@ function enterInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
 }
 
 function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
+  removeSelectionHighlight();
+
   const expandSection = shadow.querySelector('.toolbar-expand');
   const actionsDiv = shadow.querySelector('.toolbar-actions');
   const inputSection = shadow.querySelector('.toolbar-input-section');
@@ -404,6 +447,7 @@ export function showTrigger(x, y, selectionData = {}) {
 
 export function hideTrigger() {
   clearAutoHide();
+  removeSelectionHighlight();
   if (outsideClickHandler) {
     document.removeEventListener('mousedown', outsideClickHandler, true);
     outsideClickHandler = null;
