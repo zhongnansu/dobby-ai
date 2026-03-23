@@ -111,12 +111,11 @@ export function getToolbarStyles(theme) {
       background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
     }
 
-    .toolbar-more {
+    /* Pencil / close icon button */
+    .toolbar-pencil {
       background: none;
       border: none;
-      color: ${isDark ? '#a1a1aa' : '#52525b'};
-      font-size: 16px;
-      line-height: 1;
+      color: ${accent};
       min-width: 28px;
       height: 28px;
       padding: 4px 6px;
@@ -126,62 +125,93 @@ export function getToolbarStyles(theme) {
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background 0.15s;
+      transition: background 0.15s, color 0.15s;
     }
 
-    .toolbar-more:hover {
+    .toolbar-pencil:hover {
+      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
+    }
+
+    .toolbar-pencil svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .toolbar-pencil.close-mode {
+      color: ${isDark ? '#a1a1aa' : '#71717a'};
+    }
+
+    .toolbar-pencil.close-mode:hover {
       background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
     }
 
-    .toolbar-popover {
-      display: none;
+    /* Input mode container */
+    .toolbar-input-section {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+      opacity: 0;
+      pointer-events: none;
       position: absolute;
-      bottom: calc(100% + 6px);
-      left: 0;
-      min-width: 180px;
-      max-height: 260px;
-      overflow-y: auto;
-      background: ${isDark ? 'rgba(30, 30, 40, 0.92)' : 'rgba(255, 255, 255, 0.92)'};
-      backdrop-filter: blur(16px) saturate(180%);
-      -webkit-backdrop-filter: blur(16px) saturate(180%);
-      border: 1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
+      left: 37px;
+      right: 4px;
+      transition: opacity 0.15s ease;
+    }
+
+    .toolbar-input-section.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .toolbar-input-field {
+      flex: 1;
+      min-width: 0;
+      height: 24px;
+      border: none;
+      outline: none;
+      background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(124,58,237,0.06)'};
       border-radius: 10px;
-      box-shadow: 0 4px 16px ${isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.12)'};
-      padding: 4px 0;
-      z-index: 10;
+      padding: 0 8px;
+      font-size: 11px;
+      font-family: ${fontStack};
+      color: ${isDark ? '#e4e4e7' : '#18181b'};
     }
 
-    .toolbar-popover.open {
-      display: block;
+    .toolbar-input-field::placeholder {
+      color: ${isDark ? '#71717a' : '#a1a1aa'};
     }
 
-    .toolbar-popover.popover-below {
-      bottom: auto;
-      top: calc(100% + 6px);
-    }
-
-    .toolbar-popover-item {
-      display: block;
-      width: 100%;
+    .toolbar-send {
       background: none;
       border: none;
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
-      font-size: 12px;
-      font-family: ${fontStack};
-      padding: 7px 14px;
+      color: ${accent};
+      min-width: 24px;
+      height: 24px;
+      padding: 2px;
+      border-radius: 6px;
       cursor: pointer;
-      text-align: left;
-      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
     }
 
-    .toolbar-popover-item:hover {
-      background: ${isDark ? 'rgba(167,139,250,0.15)' : 'rgba(124,58,237,0.08)'};
+    .toolbar-send:hover {
+      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
     }
 
-    .toolbar-popover-item.custom-prompt {
-      border-top: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
-      color: ${isDark ? accentLight : accent};
-      font-weight: 500;
+    .toolbar-send.disabled {
+      opacity: 0.3;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .toolbar-send svg {
+      width: 14px;
+      height: 14px;
     }
 
   `;
