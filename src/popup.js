@@ -23,3 +23,22 @@ toggle.addEventListener('change', () => {
 settingsLink.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+
+// Autosuggest toggle
+const autosuggestToggle = document.getElementById('autosuggest-enabled');
+const autosuggestStatus = document.getElementById('autosuggest-status');
+
+chrome.storage.local.get('autosuggestEnabled', (data) => {
+  const enabled = data.autosuggestEnabled === true; // default: disabled
+  autosuggestToggle.checked = enabled;
+});
+
+autosuggestToggle.addEventListener('change', () => {
+  const enabled = autosuggestToggle.checked;
+  chrome.storage.local.set({ autosuggestEnabled: enabled });
+  chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
+    tabs.forEach((tab) => {
+      chrome.tabs.sendMessage(tab.id, { type: 'AUTOSUGGEST_TOGGLE', enabled }).catch(() => {});
+    });
+  });
+});
