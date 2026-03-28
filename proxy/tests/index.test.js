@@ -183,6 +183,58 @@ describe('POST /chat', () => {
     expect(res.status).toBe(502);
   });
 
+  it('passes purpose to checkRateLimit and incrementCounters', async () => {
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1, purpose: 'autosuggest' },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await handler.fetch(req, makeEnv());
+    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest');
+    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest');
+  });
+
+  it('defaults purpose to chat when not specified', async () => {
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1 },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await handler.fetch(req, makeEnv());
+    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat');
+    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat');
+  });
+
+  it('passes maxTokens=200 to createChatStream for autosuggest', async () => {
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1, purpose: 'autosuggest' },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await handler.fetch(req, makeEnv());
+    expect(createChatStream).toHaveBeenCalledWith(
+      expect.any(Array),
+      'sk-test',
+      undefined,
+      200
+    );
+  });
+
+  it('passes maxTokens=undefined to createChatStream for chat', async () => {
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1 },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await handler.fetch(req, makeEnv());
+    expect(createChatStream).toHaveBeenCalledWith(
+      expect.any(Array),
+      'sk-test',
+      undefined,
+      undefined
+    );
+  });
+
   it('returns 413 for oversized request body', async () => {
     const oversizedBody = JSON.stringify({ messages: [{ role: 'user', content: 'x'.repeat(2200000) }] });
     const req = new Request('https://proxy.workers.dev/chat', {

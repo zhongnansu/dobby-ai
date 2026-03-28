@@ -5,6 +5,11 @@ const LIMITS = {
   globalPerDay: 5000,
 };
 
+const AUTOSUGGEST_LIMITS = {
+  perMinute: 20,
+  perDay: 200,
+};
+
 function minuteBucket() {
   return Math.floor(Date.now() / 60000);
 }
@@ -17,15 +22,22 @@ function tenSecBucket() {
   return Math.floor(Date.now() / 10000);
 }
 
-export async function checkRateLimit(ip, kv) {
-  // Check block list first
+function keyPrefix(purpose) {
+  return purpose === 'autosuggest' ? 'as' : 'rl';
+}
+
+export async function checkRateLimit(ip, kv, purpose = 'chat') {
+  // Check block list first (shared across both purposes)
   const blocked = await kv.get(`blocked:${ip}`);
   if (blocked) {
     return { allowed: false, reason: 'IP blocked for abuse', retryAfter: 3600 };
   }
 
-  const minKey = `rl:min:${ip}:${minuteBucket()}`;
-  const dayKey = `rl:day:${ip}:${dayBucket()}`;
+  const prefix = keyPrefix(purpose);
+  const limits = purpose === 'autosuggest' ? AUTOSUGGEST_LIMITS : LIMITS;
+
+  const minKey = `${prefix}:min:${ip}:${minuteBucket()}`;
+  const dayKey = `${prefix}:day:${ip}:${dayBucket()}`;
   const globalKey = `rl:global:${dayBucket()}`;
 
   const [minCount, dayCount, globalCount] = await Promise.all([
@@ -34,11 +46,11 @@ export async function checkRateLimit(ip, kv) {
     kv.get(globalKey).then((v) => parseInt(v) || 0),
   ]);
 
-  if (minCount >= LIMITS.perMinute) {
+  if (minCount >= limits.perMinute) {
     return { allowed: false, reason: 'Rate limit: per-minute limit reached', retryAfter: 60 };
   }
 
-  if (dayCount >= LIMITS.perDay) {
+  if (dayCount >= limits.perDay) {
     return { allowed: false, reason: 'Daily limit reached', remaining: 0 };
   }
 
@@ -46,12 +58,14 @@ export async function checkRateLimit(ip, kv) {
     return { allowed: false, reason: 'Service busy, try later', retryAfter: 3600 };
   }
 
-  return { allowed: true, remaining: LIMITS.perDay - dayCount - 1 };
+  return { allowed: true, remaining: limits.perDay - dayCount - 1 };
 }
 
-export async function incrementCounters(ip, kv) {
-  const minKey = `rl:min:${ip}:${minuteBucket()}`;
-  const dayKey = `rl:day:${ip}:${dayBucket()}`;
+export async function incrementCounters(ip, kv, purpose = 'chat') {
+  const prefix = keyPrefix(purpose);
+
+  const minKey = `${prefix}:min:${ip}:${minuteBucket()}`;
+  const dayKey = `${prefix}:day:${ip}:${dayBucket()}`;
   const globalKey = `rl:global:${dayBucket()}`;
   const burstKey = `rl:10s:${ip}:${tenSecBucket()}`;
 
