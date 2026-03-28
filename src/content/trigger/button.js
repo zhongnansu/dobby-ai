@@ -8,12 +8,10 @@ import { buildChatMessages } from '../prompt.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import {
   setToolbarHost, setToolbarState, toolbarState,
-  popoverOpen, setPopoverOpen,
   triggerButton, setTriggerButton,
 } from '../shared/state.js';
 import { detectContentType } from '../detection.js';
-import { getSuggestedPresetsForType, getAllPresetsForType } from '../presets.js';
-import { showBubbleWithPresets } from '../bubble/core.js';
+import { getSuggestedPresetsForType } from '../presets.js';
 import { captureImage } from '../image-capture.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 
@@ -41,6 +39,10 @@ const cockapooSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
 </svg>`;
 
 const iconDataUri = 'data:image/svg+xml,' + encodeURIComponent(cockapooSvg);
+
+const pencilSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+const closeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+const sendSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
 
 // --- Auto-hide timer ---
 let autoHideTimer = null;
@@ -73,7 +75,7 @@ function createToolbar() {
     lineHeight: '0',
   });
 
-  const shadow = host.attachShadow({ mode: 'open' });
+  const shadow = host.attachShadow({ mode: 'open', delegatesFocus: true });
 
   // Inject styles
   const style = document.createElement('style');
@@ -113,21 +115,34 @@ function createToolbar() {
   sep2.className = 'toolbar-sep';
   expandSection.appendChild(sep2);
 
-  const moreBtn = document.createElement('button');
-  moreBtn.className = 'toolbar-more';
-  moreBtn.innerHTML = '&#x22EE;'; // vertical ellipsis ⋮
-  moreBtn.title = 'More actions';
-  expandSection.appendChild(moreBtn);
+  // Pencil / close toggle button
+  const pencilBtn = document.createElement('button');
+  pencilBtn.className = 'toolbar-pencil';
+  pencilBtn.innerHTML = pencilSvg;
+  pencilBtn.title = 'Custom prompt';
+  expandSection.appendChild(pencilBtn);
+
+  // Input mode section (hidden by default, overlays expand section)
+  const inputSection = document.createElement('div');
+  inputSection.className = 'toolbar-input-section';
+
+  const inputField = document.createElement('input');
+  inputField.className = 'toolbar-input-field';
+  inputField.type = 'text';
+  inputField.placeholder = 'Ask about this...';
+  inputSection.appendChild(inputField);
+
+  const sendBtn = document.createElement('button');
+  sendBtn.className = 'toolbar-send disabled';
+  sendBtn.innerHTML = sendSvg;
+  sendBtn.title = 'Send';
+  inputSection.appendChild(sendBtn);
 
   row.appendChild(expandSection);
+  row.appendChild(inputSection);
   toolbar.appendChild(row);
 
   shadow.appendChild(toolbar);
-
-  // Popover (rendered outside toolbar for positioning)
-  const popover = document.createElement('div');
-  popover.className = 'toolbar-popover';
-  toolbar.appendChild(popover);
 
   // --- Event handlers ---
   toolbar.addEventListener('mouseenter', () => {
@@ -138,16 +153,56 @@ function createToolbar() {
   });
 
   toolbar.addEventListener('mouseleave', () => {
-    if (toolbarState === 'expanded' && !popoverOpen) {
+    if (toolbarState === 'expanded') {
       collapseToolbar(shadow);
       startAutoHide(host);
     }
-    // If morphed, do not collapse
+    // If 'input' or 'morphed', do not collapse
   });
 
-  moreBtn.addEventListener('click', (e) => {
+  // --- Input mode handlers ---
+  pencilBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    togglePopover(host, shadow);
+    if (toolbarState === 'input') {
+      exitInputMode(shadow, pencilBtn, inputField, sendBtn, host);
+    } else {
+      enterInputMode(shadow, pencilBtn, inputField, sendBtn, host);
+    }
+  });
+
+  inputField.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const text = inputField.value.trim();
+      if (text) {
+        const detectedType = host._detectedType || 'default';
+        const detectedSubType = host._detectedSubType || null;
+        recordPresetUsage(buildTypeKey(detectedType, detectedSubType), 'Custom');
+        morphIntoBubble(host, shadow, 'Custom', text);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      exitInputMode(shadow, pencilBtn, inputField, sendBtn, host);
+    }
+  });
+
+  sendBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const text = inputField.value.trim();
+    if (text) {
+      const detectedType = host._detectedType || 'default';
+      const detectedSubType = host._detectedSubType || null;
+      recordPresetUsage(buildTypeKey(detectedType, detectedSubType), 'Custom');
+      morphIntoBubble(host, shadow, 'Custom', text);
+    }
+  });
+
+  inputField.addEventListener('input', () => {
+    if (inputField.value.trim()) {
+      sendBtn.classList.remove('disabled');
+    } else {
+      sendBtn.classList.add('disabled');
+    }
   });
 
   document.body.appendChild(host);
@@ -170,7 +225,7 @@ function expandToolbar(host, shadow) {
   const detected = detectContentType(text, anchorNode);
   let presets = getSuggestedPresetsForType(detected.type, detected.subType);
 
-  // Store detected info for popover
+  // Store detected info for input mode
   host._detectedType = detected.type;
   host._detectedSubType = detected.subType;
 
@@ -212,7 +267,6 @@ function expandToolbar(host, shadow) {
 function collapseToolbar(shadow) {
   const toolbar = shadow.querySelector('.toolbar');
   toolbar.classList.remove('expanded');
-  closePopover(shadow);
   setToolbarState('collapsed');
 }
 
@@ -221,9 +275,8 @@ function collapseToolbar(shadow) {
 function morphIntoBubble(host, shadow, label, instruction) {
   const toolbar = shadow.querySelector('.toolbar');
 
-  // Close popover if open
-  closePopover(shadow);
   clearAutoHide();
+  removeSelectionHighlight();
 
   // Get toolbar position — bubble will appear growing from here
   const hostRect = host.getBoundingClientRect();
@@ -258,78 +311,113 @@ function morphIntoBubble(host, shadow, label, instruction) {
   setTimeout(() => hideTrigger(), 220);
 }
 
-// --- Popover ---
+// --- Selection highlight overlay ---
+// When input mode is active, the browser clears the page's text selection highlight
+// because focus moves to the shadow DOM input. These overlays preserve the visual highlight.
 
-function togglePopover(host, shadow) {
-  const popover = shadow.querySelector('.toolbar-popover');
-  if (popoverOpen) {
-    closePopover(shadow);
-  } else {
-    openPopover(host, shadow);
-  }
-}
+let selectionHighlights = [];
 
-function openPopover(host, shadow) {
-  const popover = shadow.querySelector('.toolbar-popover');
-
-  const detectedType = host._detectedType || 'default';
-  const detectedSubType = host._detectedSubType || null;
-
-  // Get all extra presets (those not shown in toolbar)
-  const extraPresets = getAllPresetsForType(detectedType, detectedSubType);
-
-  popover.innerHTML = '';
-
-  extraPresets.forEach((preset) => {
-    const item = document.createElement('button');
-    item.className = 'toolbar-popover-item';
-    item.textContent = preset.label;
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closePopover(shadow);
-      morphIntoBubble(host, shadow, preset.label, preset.instruction);
+function showSelectionHighlight() {
+  removeSelectionHighlight();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const rects = range.getClientRects();
+  for (const rect of rects) {
+    if (rect.width === 0 || rect.height === 0) continue;
+    const div = document.createElement('div');
+    div.className = 'dobby-selection-highlight';
+    Object.assign(div.style, {
+      position: 'fixed',
+      left: rect.left + 'px',
+      top: rect.top + 'px',
+      width: rect.width + 'px',
+      height: rect.height + 'px',
+      background: 'rgba(124, 58, 237, 0.13)',
+      pointerEvents: 'none',
+      zIndex: '2147483646',
+      borderRadius: '2px',
     });
-    popover.appendChild(item);
-  });
-
-  // "Custom prompt..." item
-  const customItem = document.createElement('button');
-  customItem.className = 'toolbar-popover-item custom-prompt';
-  customItem.dataset.action = 'custom';
-  customItem.textContent = 'Custom prompt\u2026';
-  customItem.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closePopover(shadow);
-    const text = host._selectedText || '';
-    const anchorNode = host._anchorNode || null;
-    // Compute rect from host position
-    const hostRect = host.getBoundingClientRect
-      ? host.getBoundingClientRect()
-      : { top: 200, bottom: 220, left: 100, right: 300 };
-    hideTrigger();
-    showBubbleWithPresets(hostRect, text, anchorNode);
-  });
-  popover.appendChild(customItem);
-
-  popover.classList.add('open');
-
-  // Flip popover below the toolbar if it would be clipped above the viewport
-  popover.classList.remove('popover-below');
-  const hostRect = host.getBoundingClientRect();
-  const popoverRect = popover.getBoundingClientRect();
-  if (popoverRect.top < 0 || hostRect.top < popoverRect.height + 6) {
-    popover.classList.add('popover-below');
+    document.body.appendChild(div);
+    selectionHighlights.push(div);
   }
-
-  setPopoverOpen(true);
 }
 
-function closePopover(shadow) {
-  const popover = shadow.querySelector('.toolbar-popover');
-  if (popover) {
-    popover.classList.remove('open');
+function removeSelectionHighlight() {
+  selectionHighlights.forEach(el => el.remove());
+  selectionHighlights = [];
+}
+
+// --- Input mode ---
+
+let outsideClickHandler = null;
+
+function enterInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
+  clearAutoHide();
+
+  // Show highlight overlay before focus steals the visual selection
+  showSelectionHighlight();
+
+  const expandSection = shadow.querySelector('.toolbar-expand');
+  const actionsDiv = shadow.querySelector('.toolbar-actions');
+  const inputSection = shadow.querySelector('.toolbar-input-section');
+  const seps = expandSection.querySelectorAll('.toolbar-sep');
+
+  actionsDiv.style.opacity = '0';
+  actionsDiv.style.pointerEvents = 'none';
+  seps.forEach(s => { s.style.opacity = '0'; });
+
+  pencilBtn.innerHTML = closeSvg;
+  pencilBtn.classList.add('close-mode');
+  pencilBtn.title = 'Cancel';
+
+  inputSection.classList.add('visible');
+
+  inputField.value = '';
+  sendBtn.classList.add('disabled');
+  setTimeout(() => inputField.focus(), 50);
+
+  setToolbarState('input');
+
+  outsideClickHandler = (e) => {
+    if (!host.contains(e.target) && !host.shadowRoot.contains(e.target)) {
+      exitInputMode(shadow, pencilBtn, inputField, sendBtn, host);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('mousedown', outsideClickHandler, true);
+  }, 0);
+}
+
+function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
+  removeSelectionHighlight();
+
+  const expandSection = shadow.querySelector('.toolbar-expand');
+  const actionsDiv = shadow.querySelector('.toolbar-actions');
+  const inputSection = shadow.querySelector('.toolbar-input-section');
+  const seps = expandSection.querySelectorAll('.toolbar-sep');
+
+  inputSection.classList.remove('visible');
+
+  actionsDiv.style.opacity = '';
+  actionsDiv.style.pointerEvents = '';
+  seps.forEach(s => { s.style.opacity = ''; });
+
+  pencilBtn.innerHTML = pencilSvg;
+  pencilBtn.classList.remove('close-mode');
+  pencilBtn.title = 'Custom prompt';
+
+  inputField.value = '';
+  sendBtn.classList.add('disabled');
+
+  setToolbarState('expanded');
+
+  startAutoHide(host);
+
+  if (outsideClickHandler) {
+    document.removeEventListener('mousedown', outsideClickHandler, true);
+    outsideClickHandler = null;
   }
-  setPopoverOpen(false);
 }
 
 // --- Public API ---
@@ -359,7 +447,11 @@ export function showTrigger(x, y, selectionData = {}) {
 
 export function hideTrigger() {
   clearAutoHide();
-
+  removeSelectionHighlight();
+  if (outsideClickHandler) {
+    document.removeEventListener('mousedown', outsideClickHandler, true);
+    outsideClickHandler = null;
+  }
   const host = document.getElementById('dobby-ai-toolbar-host');
   if (host) {
     host.remove();
@@ -367,7 +459,6 @@ export function hideTrigger() {
   setToolbarHost(null);
   setTriggerButton(null);
   setToolbarState('collapsed');
-  setPopoverOpen(false);
 }
 
 // --- Legacy compatibility: createTriggerButton maps to showTrigger ---
