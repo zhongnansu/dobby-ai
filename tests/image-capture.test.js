@@ -40,7 +40,7 @@ afterAll(() => {
   Object.defineProperty(HTMLImageElement.prototype, 'src', originalSrcDescriptor);
 });
 
-const { captureImage, captureScreenshot, _downsizeBase64, _corsRefetch } = await import('../src/content/image-capture.js');
+const { captureImage, captureScreenshot, _downsizeBase64, _corsRefetch, _cropImage } = await import('../src/content/image-capture.js');
 
 describe('captureImage', () => {
   it('returns null for empty string', async () => {
@@ -131,6 +131,158 @@ describe('_downsizeBase64', () => {
 describe('_corsRefetch', () => {
   it('returns null when image fails to load', async () => {
     const result = await _corsRefetch('https://nonexistent.example.com/img.png');
+    expect(result).toBeNull();
+  });
+});
+
+// Helper: capture origCreateElement before any spy wraps it
+const origCreateElement = document.createElement.bind(document);
+
+function makeCanvasMock(toDataURLResult) {
+  const ctx = { drawImage: vi.fn() };
+  const canvas = {
+    width: 0,
+    height: 0,
+    getContext: vi.fn(() => ctx),
+    toDataURL: vi.fn(() => toDataURLResult),
+    _ctx: ctx,
+  };
+  return canvas;
+}
+
+describe('_corsRefetch - canvas draw path', () => {
+  let mockCanvas;
+  let createElementSpy;
+
+  beforeEach(() => {
+    mockCanvas = makeCanvasMock('data:image/jpeg;base64,corsdrawn');
+    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+      if (tag === 'canvas') return mockCanvas;
+      return origCreateElement(tag);
+    });
+  });
+
+  afterEach(() => { createElementSpy.mockRestore(); });
+
+  it('draws loaded image to canvas and returns toDataURL result', async () => {
+    const result = await _corsRefetch('data:image/jpeg;base64,validdata');
+    expect(result).toBe('data:image/jpeg;base64,corsdrawn');
+    expect(mockCanvas._ctx.drawImage).toHaveBeenCalled();
+    expect(mockCanvas.toDataURL).toHaveBeenCalledWith('image/jpeg', 0.8);
+  });
+
+  it('returns null when canvas getContext throws', async () => {
+    mockCanvas.getContext = vi.fn(() => { throw new Error('canvas unsupported'); });
+    const result = await _corsRefetch('data:image/jpeg;base64,validdata');
+    expect(result).toBeNull();
+  });
+});
+
+describe('_cropImage', () => {
+  let mockCanvas;
+  let createElementSpy;
+
+  beforeEach(() => {
+    mockCanvas = makeCanvasMock('data:image/jpeg;base64,cropped');
+    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+      if (tag === 'canvas') return mockCanvas;
+      return origCreateElement(tag);
+    });
+    window.devicePixelRatio = 1;
+  });
+
+  afterEach(() => {
+    createElementSpy.mockRestore();
+    window.devicePixelRatio = 1;
+  });
+
+  it('returns cropped data URL for valid image input', async () => {
+    const rect = { x: 10, y: 20, width: 100, height: 80 };
+    const result = await _cropImage('data:image/jpeg;base64,fullimage', rect);
+    expect(result).toBe('data:image/jpeg;base64,cropped');
+    expect(mockCanvas._ctx.drawImage).toHaveBeenCalled();
+    expect(mockCanvas.toDataURL).toHaveBeenCalledWith('image/jpeg', 0.8);
+  });
+
+  it('accounts for devicePixelRatio in drawImage coordinates', async () => {
+    window.devicePixelRatio = 2;
+    const rect = { x: 5, y: 10, width: 50, height: 40 };
+    await _cropImage('data:image/jpeg;base64,fullimage', rect);
+    // dpr=2: sx=10, sy=20, sw=100, sh=80, dx=0, dy=0, dw=100, dh=80
+    expect(mockCanvas._ctx.drawImage).toHaveBeenCalledWith(
+      expect.any(HTMLImageElement),
+      10, 20, 100, 80,
+      0, 0, 100, 80
+    );
+  });
+
+  it('returns null when image fails to load', async () => {
+    const result = await _cropImage('https://fail.example.com/img.jpg', { x: 0, y: 0, width: 100, height: 100 });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when canvas throws during draw', async () => {
+    mockCanvas.getContext = vi.fn(() => null); // null ctx causes drawImage to throw
+    const result = await _cropImage('data:image/jpeg;base64,fullimage', { x: 0, y: 0, width: 50, height: 50 });
+    expect(result).toBeNull();
+  });
+});
+
+describe('captureScreenshot - success path', () => {
+  let mockCanvas;
+  let createElementSpy;
+
+  beforeEach(() => {
+    chrome.runtime.sendMessage.mockReset();
+    mockCanvas = makeCanvasMock('data:image/jpeg;base64,' + 'B'.repeat(100));
+    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+      if (tag === 'canvas') return mockCanvas;
+      return origCreateElement(tag);
+    });
+  });
+
+  afterEach(() => { createElementSpy.mockRestore(); });
+
+  it('returns image_url when screenshot and crop succeed', async () => {
+    chrome.runtime.sendMessage.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,fullscreen' });
+    const result = await captureScreenshot({ x: 0, y: 0, width: 200, height: 150 });
+    expect(result).not.toBeNull();
+    expect(result.type).toBe('image_url');
+    expect(result.image_url.url).toBe('data:image/jpeg;base64,' + 'B'.repeat(100));
+  });
+
+  it('returns null when canvas throws during crop', async () => {
+    chrome.runtime.sendMessage.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,fullscreen' });
+    mockCanvas.getContext = vi.fn(() => null);
+    const result = await captureScreenshot({ x: 0, y: 0, width: 200, height: 150 });
+    expect(result).toBeNull();
+  });
+});
+
+describe('_downsizeBase64 - downscaling path', () => {
+  let mockCanvas;
+  let createElementSpy;
+
+  beforeEach(() => {
+    mockCanvas = makeCanvasMock('data:image/jpeg;base64,' + 'S'.repeat(100));
+    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+      if (tag === 'canvas') return mockCanvas;
+      return origCreateElement(tag);
+    });
+  });
+
+  afterEach(() => { createElementSpy.mockRestore(); });
+
+  it('returns scaled-down URL when base64 part exceeds 1MB', async () => {
+    const largeDataUrl = 'data:image/jpeg;base64,' + 'A'.repeat(1048577);
+    const result = await _downsizeBase64(largeDataUrl);
+    expect(result).toBe('data:image/jpeg;base64,' + 'S'.repeat(100));
+  });
+
+  it('returns null when image remains too large after max downscale attempts', async () => {
+    mockCanvas.toDataURL = vi.fn(() => 'data:image/jpeg;base64,' + 'X'.repeat(1048577));
+    const largeDataUrl = 'data:image/jpeg;base64,' + 'A'.repeat(1048577);
+    const result = await _downsizeBase64(largeDataUrl);
     expect(result).toBeNull();
   });
 });
