@@ -359,3 +359,164 @@ describe('chat-stream integration', () => {
     });
   });
 });
+
+describe('autosuggest-stream port', () => {
+  function createAutosuggestPort() {
+    let messageHandler;
+    const port = {
+      name: 'autosuggest-stream',
+      postMessage: vi.fn(),
+      onMessage: { addListener: vi.fn((fn) => { messageHandler = fn; }) },
+      onDisconnect: { addListener: vi.fn() },
+    };
+    return { port, getHandler: () => messageHandler };
+  }
+
+  function makeSSEResponse(chunks) {
+    const encoder = new TextEncoder();
+    let i = 0;
+    const body = { getReader: () => ({
+      read: () => {
+        if (i >= chunks.length) return Promise.resolve({ done: true });
+        return Promise.resolve({ done: false, value: encoder.encode(chunks[i++]) });
+      }
+    })};
+    return { ok: true, status: 200, body };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStorageGet.mockImplementation(() => Promise.resolve({}));
+  });
+
+  it('registers a handler for autosuggest-stream port', () => {
+    // There should be at least 2 onConnect listeners (chat-stream + autosuggest-stream)
+    expect(connectListeners.length).toBeGreaterThanOrEqual(2);
+
+    const { port } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+    expect(port.onMessage.addListener).toHaveBeenCalled();
+  });
+
+  it('ignores ports with wrong name', () => {
+    const autosuggestHandler = connectListeners[1];
+    const port = { name: 'other', onMessage: { addListener: vi.fn() }, onDisconnect: { addListener: vi.fn() } };
+    autosuggestHandler(port);
+    expect(port.onMessage.addListener).not.toHaveBeenCalled();
+  });
+
+  it('uses max_tokens of 50 when calling OpenAI directly', async () => {
+    const { port, getHandler } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+
+    mockStorageGet.mockImplementation(() => Promise.resolve({ userApiKey: 'sk-user' }));
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('openai.com');
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.max_tokens).toBe(50);
+  });
+
+  it('passes purpose=autosuggest to proxy when no user key', async () => {
+    const { port, getHandler } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('workers.dev');
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.purpose).toBe('autosuggest');
+  });
+
+  it('aborts on port disconnect', async () => {
+    const { port } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+
+    // Grab the onDisconnect callback
+    const disconnectCallback = port.onDisconnect.addListener.mock.calls[0][0];
+
+    // Set up a fetch that hangs until aborted
+    let abortSignal;
+    fetch.mockImplementation((url, opts) => {
+      abortSignal = opts.signal;
+      return new Promise((_, reject) => {
+        opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+      });
+    });
+    mockStorageGet.mockImplementation(() => Promise.resolve({}));
+
+    const handler = port.onMessage.addListener.mock.calls[0][0];
+    // Fire the request (don't await — it will hang until abort)
+    handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    // Wait for fetch to be called so the abort controller is wired up
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+
+    // Simulate disconnect
+    disconnectCallback();
+
+    expect(abortSignal.aborted).toBe(true);
+  });
+
+  it('streams tokens and sends done message', async () => {
+    const { port, getHandler } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith({ type: 'token', text: 'Hello' });
+      expect(port.postMessage).toHaveBeenCalledWith({ type: 'token', text: ' world' });
+      expect(port.postMessage).toHaveBeenCalledWith({ type: 'done' });
+    });
+  });
+
+  it('forwards 429 rate limit as rate_limited message', async () => {
+    const { port, getHandler } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+
+    fetch.mockResolvedValue({ ok: false, status: 429, json: () => Promise.resolve({ remaining: 0 }) });
+
+    const handler = getHandler();
+    await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'rate_limited', remaining: 0 }));
+    });
+  });
+});
