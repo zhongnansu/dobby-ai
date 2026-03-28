@@ -1,7 +1,8 @@
 // src/content/index.js — Content script entry point
 // Imports establish module initialization order
 
-import { setDobbyEnabled } from './shared/state.js';
+import { setDobbyEnabled, setAutosuggestEnabled, autosuggestEnabled } from './shared/state.js';
+import { initAutosuggest, destroyAutosuggest } from './autosuggest/index.js';
 import { registerListeners } from './trigger/selection.js';
 import { hideTrigger } from './trigger/button.js';
 import { showBubbleWithPresets, showBubble, hideBubble, getBubbleContainer } from './bubble/core.js';
@@ -18,10 +19,27 @@ chrome.storage.local.get('dobbyEnabled', (data) => {
 // Load preset usage data for reordering
 loadUsageData();
 
+// Load autosuggest state
+chrome.storage.local.get('autosuggestEnabled', (data) => {
+  setAutosuggestEnabled(data.autosuggestEnabled === true);
+  if (autosuggestEnabled) initAutosuggest();
+});
+
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'DOBBY_TOGGLE') {
     setDobbyEnabled(msg.enabled);
     if (!msg.enabled) hideTrigger();
+  }
+});
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'AUTOSUGGEST_TOGGLE') {
+    setAutosuggestEnabled(msg.enabled);
+    if (msg.enabled) {
+      initAutosuggest();
+    } else {
+      destroyAutosuggest();
+    }
   }
 });
 

@@ -14,7 +14,11 @@ global.chrome = {
   },
   storage: {
     local: {
-      get: vi.fn((key, cb) => cb({ dobbyEnabled: true })),
+      get: vi.fn((key, cb) => {
+        if (key === 'dobbyEnabled') return cb({ dobbyEnabled: true });
+        if (key === 'autosuggestEnabled') return cb({ autosuggestEnabled: false });
+        cb({});
+      }),
       set: vi.fn(),
     },
   },
@@ -50,6 +54,13 @@ vi.mock('../src/content/trigger/button.js', () => ({
 
 vi.mock('../src/content/shared/state.js', () => ({
   setDobbyEnabled: vi.fn(),
+  setAutosuggestEnabled: vi.fn(),
+  autosuggestEnabled: false,
+}));
+
+vi.mock('../src/content/autosuggest/index.js', () => ({
+  initAutosuggest: vi.fn(),
+  destroyAutosuggest: vi.fn(),
 }));
 
 vi.mock('../src/content/shared/dom-utils.js', () => ({
@@ -76,11 +87,11 @@ const { captureImage } = await import('../src/content/image-capture.js');
 // Import the entry point — this registers the message listeners
 await import('../src/content/index.js');
 
-// Find the SHOW_BUBBLE listener (the second one registered, after DOBBY_TOGGLE)
+// Find the SHOW_BUBBLE listener (the third one registered, after DOBBY_TOGGLE and AUTOSUGGEST_TOGGLE)
 function getShowBubbleListener() {
   return messageListeners.find(fn => {
     // Test by calling with a non-matching message to find the right one
-    return fn !== messageListeners[0]; // first is DOBBY_TOGGLE, second is SHOW_BUBBLE
+    return fn !== messageListeners[0] && fn !== messageListeners[1]; // first is DOBBY_TOGGLE, second is AUTOSUGGEST_TOGGLE, third is SHOW_BUBBLE
   });
 }
 
@@ -91,7 +102,7 @@ describe('content/index.js', () => {
 
   describe('SHOW_BUBBLE with text', () => {
     it('calls buildChatMessages and showBubble with text', () => {
-      const listener = messageListeners[1]; // SHOW_BUBBLE listener
+      const listener = messageListeners[2]; // SHOW_BUBBLE listener
       listener({ type: 'SHOW_BUBBLE', text: 'hello world' });
 
       expect(buildChatMessages).toHaveBeenCalledWith(
@@ -112,7 +123,7 @@ describe('content/index.js', () => {
     it('calls captureImage and showBubbleWithPresets', async () => {
       captureImage.mockResolvedValue({ type: 'image', data: 'base64data' });
 
-      const listener = messageListeners[1];
+      const listener = messageListeners[2];
       listener({ type: 'SHOW_BUBBLE', image: 'https://example.com/img.png' });
 
       await vi.waitFor(() => {
@@ -131,7 +142,7 @@ describe('content/index.js', () => {
     it('calls showBubble with error when captureImage returns null', async () => {
       captureImage.mockResolvedValue(null);
 
-      const listener = messageListeners[1];
+      const listener = messageListeners[2];
       listener({ type: 'SHOW_BUBBLE', image: 'https://example.com/img.png' });
 
       await vi.waitFor(() => {
@@ -147,7 +158,7 @@ describe('content/index.js', () => {
 
   describe('non-SHOW_BUBBLE messages', () => {
     it('are ignored', () => {
-      const listener = messageListeners[1];
+      const listener = messageListeners[2];
       listener({ type: 'OTHER_TYPE' });
 
       expect(showBubble).not.toHaveBeenCalled();
