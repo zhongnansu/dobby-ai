@@ -7,7 +7,7 @@ import {
   setAutosuggestPendingRequest,
 } from '../shared/state.js';
 import { debouncedSuggest, cancelPending } from './debounce.js';
-import { buildCompletionMessages } from './context.js';
+import { buildCompletionMessages, gatherPageContext } from './context.js';
 import { showGhostText, hideGhostText, acceptSuggestion } from './ghost-text.js';
 import { requestAutosuggest } from '../api.js';
 
@@ -75,10 +75,7 @@ function handleKeydown(e) {
 }
 
 function requestSuggestionFromAPI(text, textarea) {
-  const messages = buildCompletionMessages(text, {
-    pageTitle: document.title,
-    pageUrl: window.location.href,
-  });
+  const messages = buildCompletionMessages(text, gatherPageContext(textarea));
 
   let accumulated = '';
   const handle = requestAutosuggest(
