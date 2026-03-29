@@ -244,7 +244,10 @@ chrome.runtime.onConnect.addListener((port) => {
       }
 
       if (!response.ok) {
-        try { port.postMessage({ type: 'error', code: response.status, message: 'Autosuggest request failed' }); } catch (e) { /* port closed */ }
+        let errBody = '';
+        try { errBody = await response.text(); } catch (e) { /* ignore */ }
+        console.error('[Dobby AI] Autosuggest API error:', response.status, errBody);
+        try { port.postMessage({ type: 'error', code: response.status, message: 'Autosuggest request failed: ' + errBody.substring(0, 200) }); } catch (e) { /* port closed */ }
         return;
       }
 

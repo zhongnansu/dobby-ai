@@ -91,6 +91,7 @@ function requestSuggestionFromAPI(text, textarea) {
       // Done — suggestion is now in state via showGhostText
     },
     (code, message) => {
+      console.error('[Dobby Autosuggest] API error:', code, message);
       hideGhostText();
     }
   );
