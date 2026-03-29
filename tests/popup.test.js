@@ -9,6 +9,8 @@ const storageGetCallbacks = {};
 document.body.innerHTML = `
   <input type="checkbox" id="enabled" />
   <span id="status"></span>
+  <input type="checkbox" id="screenshot-enabled" checked />
+  <span id="screenshot-status">Screenshot mode</span>
   <input type="checkbox" id="autosuggest-enabled" />
   <span id="autosuggest-status" title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon.">Auto-suggest</span>
   <a id="settings" href="#">Settings</a>
@@ -112,6 +114,39 @@ describe('popup.js', () => {
     it('opens options page when clicked', () => {
       settingsLink.click();
       expect(chrome.runtime.openOptionsPage).toHaveBeenCalled();
+    });
+  });
+
+  describe('screenshot mode toggle', () => {
+    it('renders screenshot toggle', () => {
+      const toggle = document.getElementById('screenshot-enabled');
+      expect(toggle).not.toBeNull();
+      expect(toggle.type).toBe('checkbox');
+    });
+
+    it('defaults to enabled', () => {
+      storageGetCallbacks['screenshotEnabled']({});
+      const toggle = document.getElementById('screenshot-enabled');
+      expect(toggle.checked).toBe(true);
+    });
+
+    it('persists toggle state to chrome.storage', () => {
+      vi.clearAllMocks();
+      chrome.tabs.query.mockImplementation((q, cb) => cb([]));
+      const toggle = document.getElementById('screenshot-enabled');
+      toggle.checked = false;
+      toggle.dispatchEvent(new Event('change'));
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ screenshotEnabled: false });
+    });
+
+    it('notifies content scripts on toggle', () => {
+      vi.clearAllMocks();
+      chrome.tabs.query.mockImplementation((q, cb) => cb([{ id: 1 }]));
+      chrome.tabs.sendMessage.mockReturnValue(Promise.resolve());
+      const toggle = document.getElementById('screenshot-enabled');
+      toggle.checked = false;
+      toggle.dispatchEvent(new Event('change'));
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'SCREENSHOT_TOGGLE', enabled: false });
     });
   });
 

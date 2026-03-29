@@ -28,6 +28,10 @@ export let toolbarState = 'collapsed'; // 'collapsed' | 'expanded' | 'input' | '
 export function setToolbarHost(host) { toolbarHost = host; }
 export function setToolbarState(state) { toolbarState = state; }
 
+// Screenshot mode toggle
+export let screenshotEnabled = true;
+export function setScreenshotEnabled(v) { screenshotEnabled = v; }
+
 // Screenshot state
 export const screenshotState = {
   overlay: null,

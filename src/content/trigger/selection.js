@@ -4,6 +4,7 @@ import {
   triggerButton,
   dobbyEnabled,
   setDobbyEnabled,
+  screenshotEnabled,
   longPressState,
   screenshotState,
   selectionChangeTimer,
@@ -113,7 +114,7 @@ export function registerListeners() {
     if (isClickInsideUI(e.target, getBubbleContainer)) return;
     if (screenshotState.overlay) return;
 
-    if (!dobbyEnabled) return;
+    if (!dobbyEnabled || !screenshotEnabled) return;
 
     longPressState.startX = e.clientX;
     longPressState.startY = e.clientY;

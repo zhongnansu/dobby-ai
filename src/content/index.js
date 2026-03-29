@@ -1,7 +1,7 @@
 // src/content/index.js — Content script entry point
 // Imports establish module initialization order
 
-import { setDobbyEnabled, setAutosuggestEnabled } from './shared/state.js';
+import { setDobbyEnabled, setAutosuggestEnabled, setScreenshotEnabled } from './shared/state.js';
 import { initAutosuggest, destroyAutosuggest } from './autosuggest/index.js';
 import { registerListeners } from './trigger/selection.js';
 import { hideTrigger } from './trigger/button.js';
@@ -19,6 +19,11 @@ chrome.storage.local.get('dobbyEnabled', (data) => {
 // Load preset usage data for reordering
 loadUsageData();
 
+// Load screenshot mode state
+chrome.storage.local.get('screenshotEnabled', (data) => {
+  setScreenshotEnabled(data.screenshotEnabled !== false); // default: enabled
+});
+
 // Load autosuggest state
 chrome.storage.local.get('autosuggestEnabled', (data) => {
   const enabled = data.autosuggestEnabled === true;
@@ -30,6 +35,12 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'DOBBY_TOGGLE') {
     setDobbyEnabled(msg.enabled);
     if (!msg.enabled) hideTrigger();
+  }
+});
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'SCREENSHOT_TOGGLE') {
+    setScreenshotEnabled(msg.enabled);
   }
 });
 
