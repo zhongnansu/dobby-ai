@@ -24,6 +24,24 @@ settingsLink.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
+// Screenshot mode toggle
+const screenshotToggle = document.getElementById('screenshot-enabled');
+
+chrome.storage.local.get('screenshotEnabled', (data) => {
+  const enabled = data.screenshotEnabled !== false; // default: enabled
+  screenshotToggle.checked = enabled;
+});
+
+screenshotToggle.addEventListener('change', () => {
+  const enabled = screenshotToggle.checked;
+  chrome.storage.local.set({ screenshotEnabled: enabled });
+  chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
+    tabs.forEach((tab) => {
+      chrome.tabs.sendMessage(tab.id, { type: 'SCREENSHOT_TOGGLE', enabled }).catch(() => {});
+    });
+  });
+});
+
 // Autosuggest toggle
 const autosuggestToggle = document.getElementById('autosuggest-enabled');
 const autosuggestStatus = document.getElementById('autosuggest-status');
