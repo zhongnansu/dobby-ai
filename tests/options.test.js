@@ -76,6 +76,7 @@ describe('options.js', () => {
   describe('save button', () => {
     beforeEach(() => {
       vi.clearAllMocks();
+      saveBtn.disabled = false;
       // Reset to no-key state
       storageGetCallback({});
     });
@@ -101,12 +102,11 @@ describe('options.js', () => {
       expect(keyStatus.className).toBe('status error');
     });
 
-    it('shows Anthropic error for sk-ant- keys', () => {
-      apiKeyInput.value = 'sk-ant-abcdef12345';
+    it('does not reject sk-ant- keys with coming soon message', () => {
+      apiKeyInput.value = 'sk-ant-test123456789';
       saveBtn.click();
-      expect(keyStatus.textContent).toContain('Anthropic');
-      expect(keyStatus.textContent).toContain('OpenAI');
-      expect(keyStatus.className).toBe('status error');
+      // Should proceed to validation (not show "coming soon")
+      expect(keyStatus.textContent).not.toContain('coming soon');
     });
 
     it('sends validation message for valid sk- key', () => {

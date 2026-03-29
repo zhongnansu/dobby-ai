@@ -137,3 +137,112 @@ describe('incrementCounters', () => {
     expect(blockCall[2]).toEqual({ expirationTtl: 3600 });
   });
 });
+
+describe('checkRateLimit with autosuggest purpose', () => {
+  it('allows up to 20 requests per minute for autosuggest', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('as:min:')) return Promise.resolve('19');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('blocks autosuggest after 20 requests per minute', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('as:min:')) return Promise.resolve('20');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('per-minute');
+  });
+
+  it('allows up to 200 requests per day for autosuggest', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('as:day:')) return Promise.resolve('199');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(0);
+  });
+
+  it('blocks autosuggest after 200 requests per day', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('as:day:')) return Promise.resolve('200');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('Daily');
+  });
+
+  it('shares global daily limit with chat', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('rl:global:')) return Promise.resolve('5000');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('busy');
+  });
+
+  it('shares IP block list with chat', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key === 'blocked:1.2.3.4') return Promise.resolve('1');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('blocked');
+  });
+});
+
+describe('incrementCounters with autosuggest purpose', () => {
+  it('uses as: key prefix for autosuggest', async () => {
+    const kv = createMockKV();
+    await incrementCounters('1.2.3.4', kv, 'autosuggest');
+
+    const minuteCall = kv.put.mock.calls.find((c) => c[0].startsWith('as:min:'));
+    expect(minuteCall).toBeDefined();
+    expect(minuteCall[1]).toBe('1');
+
+    const dayCall = kv.put.mock.calls.find((c) => c[0].startsWith('as:day:'));
+    expect(dayCall).toBeDefined();
+    expect(dayCall[1]).toBe('1');
+
+    // Global counter still uses rl: prefix (shared)
+    const globalCall = kv.put.mock.calls.find((c) => c[0].startsWith('rl:global:'));
+    expect(globalCall).toBeDefined();
+  });
+
+  it('chat and autosuggest counters are independent', async () => {
+    const kv = createMockKV();
+    // Simulate 5 chat requests at minute limit
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('rl:min:')) return Promise.resolve('5');
+      return Promise.resolve(null);
+    });
+
+    // Chat should be blocked
+    const chatResult = await checkRateLimit('1.2.3.4', kv, 'chat');
+    expect(chatResult.allowed).toBe(false);
+
+    // Autosuggest should still be allowed (different prefix)
+    const asResult = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(asResult.allowed).toBe(true);
+  });
+});

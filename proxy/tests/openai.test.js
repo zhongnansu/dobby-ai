@@ -59,4 +59,22 @@ describe('createChatStream', () => {
     expect(result.ok).toBe(false);
     expect(result.status).toBe(401);
   });
+
+  it('uses custom maxTokens when provided', async () => {
+    mockFetch.mockResolvedValue({ ok: true, body: 'stream' });
+
+    await createChatStream([{ role: 'user', content: 'hi' }], 'sk-key', undefined, 200);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.max_tokens).toBe(200);
+  });
+
+  it('falls back to default max_tokens when maxTokens is not provided', async () => {
+    mockFetch.mockResolvedValue({ ok: true, body: 'stream' });
+
+    await createChatStream([{ role: 'user', content: 'hi' }], 'sk-key');
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.max_tokens).toBe(1000);
+  });
 });

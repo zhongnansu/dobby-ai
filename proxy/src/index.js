@@ -79,12 +79,13 @@ export default {
       return jsonResponse({ error: 'Invalid signature' }, 403, corsHeaders);
     }
 
+    const purpose = body.purpose || 'chat';
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const devBypass = env.DEV_BYPASS_TOKEN
       && request.headers.get('X-Dev-Token') === env.DEV_BYPASS_TOKEN;
     const rateResult = devBypass
       ? { allowed: true, remaining: null }
-      : await checkRateLimit(ip, env.RATE_LIMIT_KV);
+      : await checkRateLimit(ip, env.RATE_LIMIT_KV, purpose);
     if (!rateResult.allowed) {
       return jsonResponse(
         { error: rateResult.reason, remaining: rateResult.remaining ?? 0 },
@@ -94,9 +95,10 @@ export default {
       );
     }
 
-    if (!devBypass) await incrementCounters(ip, env.RATE_LIMIT_KV);
+    if (!devBypass) await incrementCounters(ip, env.RATE_LIMIT_KV, purpose);
 
-    const openaiResponse = await createChatStream(body.messages, env.OPENAI_API_KEY);
+    const maxTokens = purpose === 'autosuggest' ? 200 : undefined;
+    const openaiResponse = await createChatStream(body.messages, env.OPENAI_API_KEY, undefined, maxTokens);
 
     if (!openaiResponse.ok) {
       return jsonResponse({ error: 'Upstream error' }, 502, corsHeaders);

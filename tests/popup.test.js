@@ -3,19 +3,21 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-let storageGetCallback;
+const storageGetCallbacks = {};
 
 // Set up DOM elements before importing popup.js
 document.body.innerHTML = `
   <input type="checkbox" id="enabled" />
   <span id="status"></span>
+  <input type="checkbox" id="autosuggest-enabled" />
+  <span id="autosuggest-status" title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon.">Auto-suggest</span>
   <a id="settings" href="#">Settings</a>
 `;
 
 global.chrome = {
   storage: {
     local: {
-      get: vi.fn((key, cb) => { storageGetCallback = cb; }),
+      get: vi.fn((key, cb) => { storageGetCallbacks[key] = cb; }),
       set: vi.fn(),
     },
   },
@@ -38,19 +40,19 @@ describe('popup.js', () => {
   describe('initial state', () => {
     it('loads enabled state from storage (default enabled)', () => {
       // Trigger the storage callback with empty data (default = enabled)
-      storageGetCallback({});
+      storageGetCallbacks['dobbyEnabled']({});
       expect(toggle.checked).toBe(true);
       expect(status.textContent).toBe('Enabled');
     });
 
     it('loads disabled state from storage when explicitly disabled', () => {
-      storageGetCallback({ dobbyEnabled: false });
+      storageGetCallbacks['dobbyEnabled']({ dobbyEnabled: false });
       expect(toggle.checked).toBe(false);
       expect(status.textContent).toBe('Disabled');
     });
 
     it('loads enabled state from storage when explicitly enabled', () => {
-      storageGetCallback({ dobbyEnabled: true });
+      storageGetCallbacks['dobbyEnabled']({ dobbyEnabled: true });
       expect(toggle.checked).toBe(true);
       expect(status.textContent).toBe('Enabled');
     });
@@ -110,6 +112,35 @@ describe('popup.js', () => {
     it('opens options page when clicked', () => {
       settingsLink.click();
       expect(chrome.runtime.openOptionsPage).toHaveBeenCalled();
+    });
+  });
+
+  describe('autosuggest toggle', () => {
+    it('renders autosuggest toggle', () => {
+      const toggle = document.getElementById('autosuggest-enabled');
+      expect(toggle).not.toBeNull();
+      expect(toggle.type).toBe('checkbox');
+    });
+
+    it('defaults to disabled', () => {
+      chrome.storage.local.get.mockImplementation((key, cb) => cb({}));
+      const toggle = document.getElementById('autosuggest-enabled');
+      expect(toggle.checked).toBe(false);
+    });
+
+    it('persists toggle state to chrome.storage', () => {
+      const toggle = document.getElementById('autosuggest-enabled');
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event('change'));
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ autosuggestEnabled: true });
+    });
+
+    it('notifies content scripts on toggle', () => {
+      chrome.tabs.query.mockImplementation((q, cb) => cb([{ id: 1 }]));
+      const toggle = document.getElementById('autosuggest-enabled');
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event('change'));
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'AUTOSUGGEST_TOGGLE', enabled: true });
     });
   });
 });

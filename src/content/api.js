@@ -42,3 +42,45 @@ export function requestChat(messages, onToken, onDone, onError) {
 
   return { cancel: () => port.disconnect() };
 }
+
+/**
+ * Request an autosuggest completion via background service worker.
+ * @param {Array} messages - OpenAI chat format messages
+ * @param {Function} onToken - Called with each streamed token
+ * @param {Function} onDone - Called when streaming completes
+ * @param {Function} onError - Called with (code, message) on error
+ * @returns {{ cancel: Function }}
+ */
+export function requestAutosuggest(messages, onToken, onDone, onError) {
+  const port = chrome.runtime.connect({ name: 'autosuggest-stream' });
+
+  port.postMessage({ type: 'AUTOSUGGEST_REQUEST', messages });
+
+  port.onMessage.addListener((msg) => {
+    switch (msg.type) {
+      case 'token':
+        onToken(msg.text);
+        break;
+      case 'done':
+        onDone();
+        port.disconnect();
+        break;
+      case 'error':
+        onError(msg.code, msg.message);
+        port.disconnect();
+        break;
+      case 'rate_limited':
+        onError('RATE_LIMITED', 'Autosuggest limit reached');
+        port.disconnect();
+        break;
+    }
+  });
+
+  port.onDisconnect.addListener(() => {
+    if (chrome.runtime.lastError) {
+      onError('DISCONNECTED', 'Connection lost');
+    }
+  });
+
+  return { cancel: () => port.disconnect() };
+}

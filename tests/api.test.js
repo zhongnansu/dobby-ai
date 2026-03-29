@@ -91,3 +91,54 @@ describe('requestChat', () => {
     chrome.runtime.lastError = null;
   });
 });
+
+describe('requestAutosuggest', () => {
+  let requestAutosuggest, port;
+
+  beforeEach(async () => {
+    port = {
+      postMessage: vi.fn(),
+      onMessage: { addListener: vi.fn() },
+      onDisconnect: { addListener: vi.fn() },
+      disconnect: vi.fn(),
+    };
+    chrome.runtime.connect = vi.fn(() => port);
+
+    const mod = await import('../src/content/api.js');
+    requestAutosuggest = mod.requestAutosuggest;
+  });
+
+  it('connects with autosuggest-stream port name', () => {
+    requestAutosuggest([], vi.fn(), vi.fn(), vi.fn());
+    expect(chrome.runtime.connect).toHaveBeenCalledWith({ name: 'autosuggest-stream' });
+  });
+
+  it('sends AUTOSUGGEST_REQUEST message', () => {
+    const messages = [{ role: 'user', content: 'hello' }];
+    requestAutosuggest(messages, vi.fn(), vi.fn(), vi.fn());
+    expect(port.postMessage).toHaveBeenCalledWith({ type: 'AUTOSUGGEST_REQUEST', messages });
+  });
+
+  it('calls onToken for each token', () => {
+    const onToken = vi.fn();
+    requestAutosuggest([], onToken, vi.fn(), vi.fn());
+    const handler = port.onMessage.addListener.mock.calls[0][0];
+    handler({ type: 'token', text: 'world' });
+    expect(onToken).toHaveBeenCalledWith('world');
+  });
+
+  it('calls onDone on completion', () => {
+    const onDone = vi.fn();
+    requestAutosuggest([], vi.fn(), onDone, vi.fn());
+    const handler = port.onMessage.addListener.mock.calls[0][0];
+    handler({ type: 'done' });
+    expect(onDone).toHaveBeenCalled();
+    expect(port.disconnect).toHaveBeenCalled();
+  });
+
+  it('returns cancel function that disconnects port', () => {
+    const result = requestAutosuggest([], vi.fn(), vi.fn(), vi.fn());
+    result.cancel();
+    expect(port.disconnect).toHaveBeenCalled();
+  });
+});

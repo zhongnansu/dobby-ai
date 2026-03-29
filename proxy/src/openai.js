@@ -1,9 +1,9 @@
 // proxy/src/openai.js
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const MODEL = 'gpt-4.1-mini';
-const MAX_TOKENS = 1000;
+const DEFAULT_MAX_TOKENS = 1000;
 
-export async function createChatStream(messages, apiKey, signal) {
+export async function createChatStream(messages, apiKey, signal, maxTokens) {
   return fetch(OPENAI_URL, {
     method: 'POST',
     headers: {
@@ -14,7 +14,7 @@ export async function createChatStream(messages, apiKey, signal) {
       model: MODEL,
       messages,
       stream: true,
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens || DEFAULT_MAX_TOKENS,
     }),
     signal,
   });

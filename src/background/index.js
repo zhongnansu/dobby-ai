@@ -186,6 +186,90 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 });
 
+// --- Autosuggest Stream Port Handler ---
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'autosuggest-stream') return;
+
+  let abortController = null;
+
+  port.onMessage.addListener(async (msg) => {
+    if (msg.type !== 'AUTOSUGGEST_REQUEST') return;
+
+    abortController = new AbortController();
+    const { messages } = msg;
+
+    // Shorter timeout for autosuggest (10s vs 30s for chat)
+    const timeout = setTimeout(() => abortController.abort(), 10000);
+
+    try {
+      const stored = await chrome.storage.local.get('userApiKey');
+      let response;
+
+      if (stored.userApiKey) {
+        // Direct to OpenAI with user's own key
+        response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${stored.userApiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4.1-mini',
+            messages,
+            stream: true,
+            max_tokens: 50,
+          }),
+          signal: abortController.signal,
+        });
+      } else {
+        // Via proxy with HMAC signing — include purpose for rate limiting
+        const timestamp = Math.floor(Date.now() / 1000);
+        const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
+        const headers = { 'Content-Type': 'application/json' };
+        if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
+        response = await fetch(PROXY_URL, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ messages, signature, timestamp, purpose: 'autosuggest' }),
+          signal: abortController.signal,
+        });
+      }
+
+      if (response.status === 429) {
+        let data;
+        try { data = await response.json(); } catch (e) { data = { remaining: 0 }; }
+        try { port.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0 }); } catch (e) { /* port closed */ }
+        return;
+      }
+
+      if (!response.ok) {
+        let errBody = '';
+        try { errBody = await response.text(); } catch (e) { /* ignore */ }
+        console.error('[Dobby AI] Autosuggest API error:', response.status, errBody);
+        try { port.postMessage({ type: 'error', code: response.status, message: 'Autosuggest request failed: ' + errBody.substring(0, 200) }); } catch (e) { /* port closed */ }
+        return;
+      }
+
+      const reader = response.body.getReader();
+      for await (const token of parseSSEStream(reader)) {
+        try { port.postMessage({ type: 'token', text: token }); } catch (e) { break; }
+      }
+      try { port.postMessage({ type: 'done' }); } catch (e) { /* port closed */ }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        try { port.postMessage({ type: 'error', code: 0, message: err.message }); } catch (e) { /* port closed */ }
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+
+  port.onDisconnect.addListener(() => {
+    abortController?.abort();
+  });
+});
+
 // --- API Key Validation ---
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

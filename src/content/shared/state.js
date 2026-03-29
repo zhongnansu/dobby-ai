@@ -60,3 +60,27 @@ export let scrollTimer = null;
 
 export function setSelectionChangeTimer(v) { selectionChangeTimer = v; }
 export function setScrollTimer(v) { scrollTimer = v; }
+
+// Autosuggest state
+export let autosuggestEnabled = false;
+export let autosuggestActiveTextarea = null;
+export let autosuggestCurrentSuggestion = '';
+export let autosuggestOverlayHost = null;
+export let autosuggestPendingRequest = null;
+export let autosuggestDebounceTimer = null;
+
+export function setAutosuggestEnabled(v) { autosuggestEnabled = v; }
+export function setAutosuggestActiveTextarea(v) { autosuggestActiveTextarea = v; }
+export function setAutosuggestCurrentSuggestion(v) { autosuggestCurrentSuggestion = v; }
+export function setAutosuggestOverlayHost(v) { autosuggestOverlayHost = v; }
+export function setAutosuggestPendingRequest(v) { autosuggestPendingRequest = v; }
+export function setAutosuggestDebounceTimer(v) { autosuggestDebounceTimer = v; }
+
+export function resetAutosuggestState() {
+  autosuggestEnabled = false;
+  autosuggestActiveTextarea = null;
+  autosuggestCurrentSuggestion = '';
+  autosuggestOverlayHost = null;
+  autosuggestPendingRequest = null;
+  autosuggestDebounceTimer = null;
+}
