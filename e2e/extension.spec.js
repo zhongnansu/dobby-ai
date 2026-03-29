@@ -37,7 +37,7 @@ test('popup page loads and toggle works', async () => {
   await popupPage.waitForTimeout(500);
 
   // The checkbox is visually hidden (opacity:0) — use the label to toggle
-  const toggleLabel = popupPage.locator('label.toggle');
+  const toggleLabel = popupPage.locator('label.toggle').first();
   await expect(toggleLabel).toBeVisible({ timeout: 5000 });
 
   // Click to toggle off
@@ -45,7 +45,7 @@ test('popup page loads and toggle works', async () => {
   const status = popupPage.locator('#status');
   await expect(status).toHaveText('Disabled');
 
-  // Click to toggle back on
+  // Click to toggle back on (toggleLabel already references .first())
   await toggleLabel.click();
   await expect(status).toHaveText('Enabled');
 
