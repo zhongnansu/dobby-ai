@@ -22,10 +22,6 @@ test('history button opens history panel', async () => {
   await waitForToolbar(page);
   await openBubbleViaToolbar(page);
 
-  // Activate response section first (need it visible to access history button)
-  await clickInShadow(page, '.preset-chip');
-  await page.waitForTimeout(500);
-
   // Click history button
   await clickInShadow(page, '.history-btn');
   await page.waitForTimeout(500);
@@ -39,9 +35,6 @@ test('clear history shows empty state', async () => {
   await selectText(page, 'h1');
   await waitForToolbar(page);
   await openBubbleViaToolbar(page);
-
-  await clickInShadow(page, '.preset-chip');
-  await page.waitForTimeout(500);
 
   await clickInShadow(page, '.history-btn');
   await page.waitForTimeout(500);
