@@ -65,8 +65,14 @@ export function showGhostText(textarea, suggestion) {
   ghost.className = 'ghost-text';
   ghost.textContent = suggestion;
 
+  // Paw indicator
+  const paw = document.createElement('span');
+  paw.className = 'ghost-paw';
+  paw.textContent = '🐾';
+
   container.appendChild(mirror);
   container.appendChild(ghost);
+  container.appendChild(paw);
   shadow.appendChild(container);
 
   // Match textarea scroll position

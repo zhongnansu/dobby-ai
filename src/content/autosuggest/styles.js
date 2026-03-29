@@ -21,5 +21,11 @@ export function getGhostTextStyles() {
       color: ${AUTOSUGGEST.GHOST_COLOR};
       opacity: ${AUTOSUGGEST.GHOST_OPACITY};
     }
+    .ghost-paw {
+      font-size: 1.5em;
+      vertical-align: middle;
+      margin-left: 6px;
+      opacity: 0.6;
+    }
   `;
 }
