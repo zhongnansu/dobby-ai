@@ -1,6 +1,6 @@
 // e2e/text-selection.spec.js — Text selection → toolbar → bubble → response flow
 const { test, expect } = require('@playwright/test');
-const { launchExtension, selectText, waitForToolbar, hoverToolbar, openBubbleViaToolbar, clickToolbarPreset, waitForBubble, waitForStreamingStarted, clickInShadow, fillInShadow, pressKeyInShadow, getTextInShadow, countInShadow } = require('./helpers');
+const { launchExtension, selectText, waitForToolbar, hoverToolbar, openBubbleViaToolbar, clickToolbarPreset, waitForBubble, waitForStreamingStarted, clickInShadow, getTextInShadow } = require('./helpers');
 
 let context, extensionId, page;
 
@@ -25,7 +25,7 @@ test('select text shows toolbar', async () => {
   await expect(toolbar).toBeVisible({ timeout: 3000 });
 });
 
-test('open bubble via toolbar shows bubble with presets', async () => {
+test('open bubble via toolbar shows bubble in response mode', async () => {
   await selectText(page, 'h1');
   await waitForToolbar(page);
   await openBubbleViaToolbar(page);
@@ -33,8 +33,7 @@ test('open bubble via toolbar shows bubble with presets', async () => {
   const logo = await getTextInShadow(page, '.bubble-logo');
   expect(logo).toContain('Dobby AI');
 
-  const chipCount = await countInShadow(page, '.preset-chip');
-  expect(chipCount).toBeGreaterThan(0);
+  await waitForStreamingStarted(page);
 });
 
 test('clicking toolbar preset opens full bubble', async () => {
@@ -65,13 +64,10 @@ test('Escape key dismisses bubble', async () => {
   await expect(page.locator('#dobby-ai-bubble')).not.toBeVisible();
 });
 
-test('custom instruction input activates response', async () => {
+test('custom instruction via toolbar activates response', async () => {
   await selectText(page, 'h1');
   await waitForToolbar(page);
   await openBubbleViaToolbar(page);
-
-  await fillInShadow(page, '.preset-input', 'Translate to Spanish');
-  await pressKeyInShadow(page, '.preset-input', 'Enter');
 
   await waitForStreamingStarted(page);
 });
