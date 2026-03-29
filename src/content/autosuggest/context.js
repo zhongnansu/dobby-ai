@@ -44,7 +44,7 @@ export function gatherPageContext(textarea) {
   if (container) {
     const text = container.innerText || container.textContent || '';
     // Take first 500 chars of surrounding text, excluding the textarea's own content
-    const surrounding = text.replace(textarea.value, '').trim().substring(0, 500);
+    const surrounding = text.replaceAll(textarea.value, '').trim().substring(0, 500);
     if (surrounding.length > 20) {
       ctx.surroundingText = surrounding;
     }
